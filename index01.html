@@ -17,9 +17,9 @@
 </head>
 <body class="h-screen overflow-hidden flex flex-col p-6">
 
-    <!-- 頂部標頭列 -->
-    <header class="flex justify-between items-center border-b border-gray-800 pb-4 mb-4">
-        <div class="flex items-center space-x-4">
+    <!-- 頂部標頭列 (支援按鈕過多時自動折成多行) -->
+    <header class="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b border-gray-800 pb-4 mb-4 gap-4">
+        <div class="flex items-center space-x-4 shrink-0">
             <!-- 仿 Alfa 熱血紅圓標 -->
             <div class="w-12 h-12 bg-red-700 rounded-full flex items-center justify-center font-black text-white text-xs tracking-wider shadow-md shadow-red-900/30">ALFA</div>
             <div>
@@ -28,12 +28,12 @@
             </div>
         </div>
         
-        <!-- 里程套餐切換鈕 (由資料動態生成) -->
-        <div id="package-tabs" class="flex space-x-2">
+        <!-- 【核心改進】套餐切換鈕區域：寬度不夠時會自動往下折 (變成兩行) -->
+        <div id="package-tabs" class="flex flex-wrap gap-2 max-w-3xl justify-start lg:justify-center">
             <span class="text-sm text-gray-500">正在辨識保養套餐項目...</span>
         </div>
 
-        <button onclick="fetchSheetData()" class="bg-[#161b22] hover:bg-gray-800 text-gray-300 hover:text-white text-xs px-4 py-2 rounded-lg transition-all border border-gray-700 flex items-center space-x-1.5">
+        <button onclick="fetchSheetData()" class="bg-[#161b22] hover:bg-gray-800 text-gray-300 hover:text-white text-xs px-4 py-2 rounded-lg transition-all border border-gray-700 flex items-center space-x-1.5 shrink-0">
             <span>🔄</span> <span>手動重新整理</span>
         </button>
     </header>
@@ -127,27 +127,18 @@
         }
 
         function parseExcelCSV(csvText) {
-            const lines = csvText.split('\n');
+            const lines = csvText.split(/\r?\n/);
             const packages = {};
-            
-            // 第一個預設套餐名稱，如果在看到任何套餐名稱前有資料，就塞到這裡
-            let currentPackageName = "1000KM 套餐"; 
-            packages[currentPackageName] = {
-                name: currentPackageName,
-                items: []
-            };
+            let currentPackageName = ""; 
 
-            lines.forEach((line, idx) => {
-                // 正則安全拆解 CSV 欄位
+            lines.forEach((line) => {
                 const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim());
                 if (cols.length < 3) return;
 
-                // 【全新智慧辨識邏輯】
-                // 檢查這一列是否有任何一格含有「套餐」字眼
+                // 檢查這一行是否有任何一個格子包含了「套餐」這兩個字
                 const foundPackageCell = cols.find(cell => cell && cell.includes("套餐"));
                 
                 if (foundPackageCell) {
-                    // 如果找到了像「5000KM套餐」這樣的字，我們就開一個新的套餐分頁
                     currentPackageName = foundPackageCell;
                     packages[currentPackageName] = {
                         name: currentPackageName,
@@ -156,18 +147,16 @@
                     return;
                 }
 
-                // 確保這一行是合格的資料列（有屬性、有料號、且不是標題列「屬性」、「料號」）
-                const attr = cols[0] ? cols[0].trim() : "";
-                const partId = cols[1] ? cols[1].trim() : "";
-                const name = cols[2] ? cols[2].trim() : "";
+                const attr = cols[0] || "";
+                const partId = cols[1] || "";
+                const name = cols[2] || "";
 
-                if (partId && partId !== "料號" && attr !== "屬性") {
-                    const price = cols[3] ? cols[3].trim() : "";
-                    const qty = cols[4] ? cols[4].trim() : "";
-                    const discount = cols[5] ? cols[5].trim() : "";
-                    const subtotal = cols[6] ? cols[6].trim() : "";
+                if (currentPackageName && partId && partId !== "料號" && attr !== "屬性") {
+                    const price = cols[3] || "";
+                    const qty = cols[4] || "";
+                    const discount = cols[5] || "";
+                    const subtotal = cols[6] || "";
 
-                    // 清理金額格式以便加總
                     const cleanSubtotal = parseFloat(subtotal.replace(/[^0-9.-]+/g, "")) || 0;
 
                     packages[currentPackageName].items.push({
@@ -176,11 +165,6 @@
                 }
             });
 
-            // 整理：如果初始預設的 1000KM 套餐沒抓到東西，就將其刪除
-            if (packages["1000KM 套餐"] && packages["1000KM 套餐"].items.length === 0) {
-                delete packages["1000KM 套餐"];
-            }
-
             allParsedPackages = packages;
 
             const keys = Object.keys(allParsedPackages);
@@ -188,14 +172,14 @@
                 renderTabs(keys);
                 switchPackage(keys[0]);
             } else {
-                document.getElementById('current-package-title').innerText = "⚠️ 找不到任何套餐項目，請確認試算表格式";
+                document.getElementById('current-package-title').innerText = "⚠️ 找不到任何套餐項目，請確認試算表格式是否發布正確";
             }
         }
 
         function renderTabs(keys) {
             const tabsContainer = document.getElementById('package-tabs');
             tabsContainer.innerHTML = keys.map(key => `
-                <button onclick="switchPackage('${key}')" id="tab-${key}" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-[#161b22] text-gray-400 hover:bg-gray-800 border border-gray-800">
+                <button onclick="switchPackage('${key}')" id="tab-${key}" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-[#161b22] text-gray-400 hover:bg-gray-800 border border-gray-800 whitespace-nowrap">
                     ${key}
                 </button>
             `).join('');
@@ -206,10 +190,10 @@
 
             if (currentPackageKey) {
                 const prevTab = document.getElementById(`tab-${currentPackageKey}`);
-                if (prevTab) prevTab.className = "px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-[#161b22] text-gray-400 hover:bg-gray-800 border border-gray-800";
+                if (prevTab) prevTab.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-[#161b22] text-gray-400 hover:bg-gray-800 border border-gray-800 whitespace-nowrap";
             }
             const activeTab = document.getElementById(`tab-${key}`);
-            if (activeTab) activeTab.className = "px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-red-600 text-white shadow-lg border border-red-500";
+            if (activeTab) activeTab.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-red-600 text-white shadow-lg border border-red-500 whitespace-nowrap";
 
             currentPackageKey = key;
             const pkg = allParsedPackages[key];
