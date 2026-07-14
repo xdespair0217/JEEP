@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JEEP 保固稽核與專案作業控制台 V11_Fixed</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #eef2f5;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --border-color: #cbd5e1;
+            
+            /* 色塊配色 */
+            --color-blue: #1e40af;
+            --color-orange: #d97706;
+            --color-black: #1e1e1e;
+            --color-teal: #0f766e;
+            --color-green: #15803d;
+            --color-red: #b91c1c;
+            /* JEEP 經典軍裝戰術配色核心 */
+            --jeep-tactical-green: #2d4a22;
+            --jeep-earth-sand: #f4f1ea;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans TC', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 15px; }
+
+        header {
+            background: linear-gradient(135deg, var(--jeep-tactical-green), #1e3316);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+
+        /* 三欄黃金比例 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 320px 1fr 430px;
+            gap: 15px;
+            align-items: start;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* PDF 核心通報精華專屬精緻色塊字卡樣式 */
+        .pdf-rule-card {
+            border-left: 4px solid var(--border-color);
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            border-radius: 0 6px 6px 0;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .rule-priority-1 { border-left-color: var(--color-red); background: #fef2f2; color: #991b1b; }
+        .rule-priority-1 ul { margin-left: 15px; margin-top: 4px; color: #991b1b; }
+        .rule-priority-2 { border-left-color: var(--color-blue); background: #f0f9ff; color: #0369a1; }
+        .rule-priority-2 ul { margin-left: 15px; margin-top: 4px; color: #0369a1; }
+        .rule-priority-3 { border-left-color: var(--color-orange); background: #fffbeb; color: #9a3412; }
+
+        /* 左欄核心大綱條狀按鈕 */
+        .outline-btn {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 11px 12px;
+            border-radius: 6px;
+            text-align: left;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+            color: #334155;
+        }
+        .outline-btn:hover { background: #f0fdf4; border-color: var(--color-teal); color: var(--color-teal); }
+
+        /* 表單元素 */
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+        
+        .label-with-check {
+            display: flex !important;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .form-control { width: 100%; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 13px; outline: none; }
+        
+        /* 製造碼(DAM)捷徑按鈕排版 */
+        .vin-input-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .btn-dam-quick {
+            background-color: #faf5ff;
+            color: #7c3aed;
+            border: 1px solid #ddd6fe;
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-size: 11.5px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            height: 33px;
+            transition: all 0.2s;
+        }
+        .btn-dam-quick:hover { background-color: #7c3aed; color: white; border-color: #7c3aed; }
+
+        /* 雙文字框完全平齊等對高度 */
+        .textarea-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            font-size: 13px;
+            outline: none;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        /* DIDI 管制區 */
+        .dida-didi-compact { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        .dida-title { color: #4f46e5; font-weight: 700; font-size: 12px; }
+        .didi-title { color: #059669; font-weight: 700; font-size: 12px; }
+        
+        .checkbox-sub-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed #cbd5e1;
+        }
+
+        /* DMS 打單輔助快捷區樣式 */
+        .box-title-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .dms-syntax-box {
+            background: var(--jeep-earth-sand);
+            border: 1px solid #dcd7cc;
+            border-left: 4px solid var(--jeep-tactical-green);
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        /* 打單工具網格與永久對稱標籤 */
+        .dms-grid-container { display: grid; grid-template-columns: 1.2fr 1fr 1fr 0.8fr; gap: 4px; }
+        .dms-input-wrapper { display: flex; flex-direction: column; gap: 2px; }
+        .dms-permanent-label { font-size: 10.5px; color: #64748b; font-weight: 500; padding-left: 2px; }
+        
+        /* 位置代碼快捷按鈕樣式 */
+        .pos-quick-links {
+            display: flex;
+            gap: 4px;
+            margin-top: 2px;
+        }
+        .btn-pos-shortcut {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
+            font-size: 9.5px;
+            color: #475569;
+            cursor: pointer;
+            padding: 1px 3px;
+            font-weight: bold;
+            text-align: center;
+            flex: 1;
+            transition: all 0.15s;
+        }
+        .btn-pos-shortcut:hover { background: var(--jeep-tactical-green); color: white; border-color: var(--jeep-tactical-green); }
+
+        /* 主界面面板右上角按鈕樣式組 */
+        .btn-syntax-clear {
+            background-color: #fef2f2;
+            color: var(--color-red);
+            border: 2px solid var(--color-red);
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-right: 6px;
+        }
+        .btn-syntax-clear:hover { background-color: var(--color-red); color: white; }
+
+        .btn-video-quick {
+            background-color: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-right: 6px;
+        }
+        .btn-video-quick:hover { background-color: #16a34a; color: white; border-color: #16a34a; }
+
+        .btn-docs-quick {
+            background-color: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #ffedd5;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-right: 6px;
+        }
+        .btn-docs-quick:hover { background-color: #c2410c; color: white; border-color: #c2410c; }
+
+        .btn-linkentry-quick {
+            background-color: #f0f9ff;
+            color: #0ea5e9;
+            border: 1px solid #bae6fd;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11.5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-linkentry-quick:hover { background-color: #0ea5e9; color: white; border-color: #0ea5e9; }
+
+        /* 高飽和度案例按鈕網格 */
+        .btn-scenario-grid { 
+            display: grid; 
+            grid-template-columns: repeat(6, 1fr); 
+            gap: 6px; 
+            margin-bottom: 12px; 
+        }
+        .case-btn {
+            border: none; 
+            color: white; 
+            padding: 10px 2px; 
+            border-radius: 6px; 
+            font-size: 12px; 
+            font-weight: 700;
+            cursor: pointer; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 3px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        .case-btn i { font-size: 13px; }
+        .case-btn:hover { opacity: 0.95; filter: brightness(1.05); }
+        .case-btn:active { transform: scale(0.96); }
+
+        .btn-case-blue   { background-color: var(--color-blue); }
+        .btn-case-orange { background-color: var(--color-orange); }
+        .btn-case-black  { background-color: var(--color-black); }
+        .btn-case-teal   { background-color: var(--color-teal); }
+        .btn-case-red    { background-color: var(--color-red); }
+
+        /* 右欄輸出 */
+        .textarea-output { width: 100%; height: 65px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 5px; padding: 6px 8px; font-size: 12px; resize: none; margin-bottom: 8px; }
+        
+        /* 合併總和預覽大型框樣式 */
+        .textarea-combined-output {
+            width: 100%;
+            height: 150px;
+            background: #fbf9f5;
+            border: 2px dashed #cbd5e1;
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 12.5px;
+            color: #0f172a;
+            font-family: monospace;
+            resize: none;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        /* 清除總覽按鈕樣式 */
+        .btn-combined-clear {
+            width: 100%;
+            background-color: #fff1f2;
+            color: var(--color-red);
+            border: 1px solid #fecdd3;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12.5px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+        }
+        .btn-combined-clear:hover { background-color: var(--color-red); color: white; border-color: var(--color-red); }
+
+        .btn-submit { width: 100%; background-color: var(--jeep-tactical-green); color: white; border: none; padding: 12px; border-radius: 6px; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 6px rgba(45, 74, 34, 0.15); }
+        .btn-submit:hover { filter: brightness(1.1); }
+
+        /* 彈出視窗 (Modal) 樣式 */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75); display: none; align-items: center; justify-content: center; z-index: 9999;
+        }
+        .modal-content {
+            background: #141f11; color: #f1f5f9; border: 2px solid #5a824e; box-shadow: 0 0 20px rgba(90, 130, 78, 0.5);
+            width: 760px; max-width: 95%; border-radius: 10px; padding: 22px; position: relative; max-height: 90vh; overflow-y: auto;
+        }
+        .modal-close { position: absolute; top: 15px; right: 15px; background: none; border: none; color: #64748b; font-size: 20px; cursor: pointer; }
+        .modal-close:hover { color: #ef4444; }
+        
+        .modal-header-title { font-size: 15px; font-weight: 700; color: #7db86c; margin-bottom: 12px; border-bottom: 1px solid #23361e; padding-bottom: 8px; }
+        .modal-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12.5px; }
+        .modal-table th { background: #1e3316; color: #7db86c; text-align: left; padding: 8px; border: 1px solid #2d4a22; }
+        .modal-table td { padding: 8px; border: 1px solid #2d4a22; }
+        
+        .modal-list { margin-left: 18px; margin-top: 6px; font-size: 13px; color: #cbd5e1; }
+        .modal-list li { margin-bottom: 8px; line-height: 1.5; }
+        
+        .badge-warning { background: #fee2e2; color: #b91c1c; padding: 8px 12px; border-radius: 4px; font-size: 12px; display: block; margin-top: 12px; border-left: 4px solid #ef4444; }
+        
+        /* 內部通用聯用組樣式 */
+        .modal-sub-section { margin-bottom: 16px; font-size: 13px; }
+        .modal-sub-title { font-size: 14px; font-weight: 700; color: #7db86c; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .modal-data-row { display: flex; align-items: center; background: #1d2e19; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; border: 1px solid #294223; }
+        .modal-data-label { width: 100px; color: #94a3b8; font-weight: 500; }
+        .modal-data-value { flex: 1; font-family: monospace; font-size: 13px; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .modal-btn-action { background: #15803d; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-size: 12.5px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; transition: background 0.2s; }
+        .modal-btn-action:hover { background: #166534; }
+        
+        .modal-kpi-panel { border-left: 4px solid #15803d; background: rgba(21, 128, 61, 0.08); padding: 12px; border-radius: 0 6px 6px 0; margin-top: 15px; font-size: 12.5px; line-height: 1.5; }
+
+        .checkbox-item { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 12px; }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 4px; font-size: 13px; display: none; z-index: 99999; }
+        
+        /* 彈窗內小按鈕 */
+        .inline-copy-btn { background: #0284c7; color: white; border: none; padding: 2px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 5px; flex-shrink: 0; }
+        .inline-copy-btn:hover { background: #0369a1; }
+
+        /* 彈窗內嵌實體圖片樣式 */
+        .modal-embedded-img { width: 100%; height: auto; border: 1px solid #334155; border-radius: 6px; margin-top: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>JEEP 保固稽核與專案作業控制台</h1>
+        </div>
+        <div style="font-size: 12px;"><i class="fa-solid fa-xs fa-shield-halved"></i> 2026 年度原廠保固稽核整備規範</div>
+    </header>
+
+    <div class="grid-container">
+        
+        <div>
+            <div class="card">
+                <div class="card-title" style="color: var(--jeep-tactical-green); flex-direction: column; align-items: flex-start; gap: 2px;">
+                    <div><i class="fa-solid fa-file-pdf"></i> PDF 核心通報精華 (無須點開)</div>
+                    <div style="font-size: 11px; color: var(--text-main); opacity: 0.75; font-weight: normal; margin-top: 3px;">專案前請確認DMS 及技術網站</div>
+                </div>
+                
+                <div class="pdf-rule-card rule-priority-1">
+                    <div style="font-size: 13px; font-weight: 700; margin-bottom: 3px;">1 第一重：DMS 紀錄優先檢視</div>
+                    <strong>執行時機：</strong>開單前請先確認是否有執行過。
+                    <br><strong>核心要領：</strong>務必全面查閱該車歷史維修履歷。
+                    <br><strong>查核目的：</strong>確認是否曾於全省其他站點執行過相同召回或專案，避免虛耗。
+                </div>
+
+                <div class="pdf-rule-card rule-priority-2">
+                    <div style="font-size: 13px; font-weight: 700; margin-bottom: 3px;">2 第二重：VIN 實時狀態查核</div>
+                    <strong>執行方式：</strong>登入原廠專案系統，輸入車身號碼進行實時判定。
+                    <br>⚠️ <strong>顯示驚嘆號：</strong>代表有專案須執行。
+                    <br><strong>無驚嘆號：</strong>代表無專案或已執行完畢。
+                </div>
+
+                <div class="pdf-rule-card rule-priority-3">
+                    <div style="font-size: 13px; font-weight: 700; margin-bottom: 3px;">3 第三重：結案軌跡完整性機制</div>
+                    <div style="margin-top: 3px;"><strong>情境 A (系統未鎖定)：</strong>直接聯絡並請保固專員撤銷該筆案件。</div>
+                    <div style="margin-top: 2px;"><strong>情境 B (系統已鎖定)：</strong>內部系統直接進行「工資打零」結案，且必須在備註欄完整註記軌跡。</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title" style="color: var(--color-teal);"><i class="fa-solid fa-list-check"></i> 五大核心規範大綱 (點擊彈出)</div>
+                
+                <button class="outline-btn" onclick="openModal('modal_core_1')">
+                    <span><i class="fa-solid fa-hourglass-half" style="color:var(--color-orange);"></i> 壹、時間戳記與流程鐵律</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </button>
+
+                <button class="outline-btn" onclick="openModal('modal_core_2')">
+                    <span><i class="fa-solid fa-triangle-exclamation" style="color:var(--color-red);"></i> 貳、診斷與「預先授權」六大邊界</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </button>
+
+                <button class="outline-btn" onclick="openModal('modal_core_3')">
+                    <span><i class="fa-solid fa-photo-film" style="color:var(--color-blue);"></i> 參、數位佐證矩陣與舊品保存</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </button>
+
+                <button class="outline-btn" onclick="openModal('modal_core_4')">
+                    <span><i class="fa-solid fa-laptop-code" style="color:var(--color-teal);"></i> 肆、原廠系統實作與回報機制</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </button>
+
+                <button class="outline-btn" onclick="openModal('modal_core_5')">
+                    <span><i class="fa-solid fa-radiation" style="color:var(--color-black);"></i> 伍、2026 年度原廠保固稽核整備</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-square-check"></i> 本車專案防呆程序確認</div>
+                <div style="display: flex; flex-direction:column; gap: 8px; background: #f1f5f9; padding: 8px; border-radius: 5px;">
+                    <label class="checkbox-item"><input type="checkbox" id="chk_dms"> DMS 歷史履歷交叉比對已優先執行</label>
+                    <label class="checkbox-item"><input type="checkbox" id="chk_vin"> Workshop Online 實時 VIN 燈號已判定</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <div><i class="fa-solid fa-keyboard"></i> 數據錄入與情境生成</div>
+                <button type="button" class="btn-linkentry-quick" onclick="openModal('modal_linkentry_sop')">
+                    <i class="fa-solid fa-xs fa-right-to-bracket"></i> LinkEntry 帳密與入口
+                </button>
+            </div>
+            
+            <div class="btn-scenario-grid">
+                <button class="case-btn btn-case-blue" onclick="applyRealCase('paint_color')">
+                    <i class="fa-solid fa-palette"></i><span>漆面異色</span>
+                </button>
+                <button class="case-btn btn-case-orange" onclick="applyRealCase('paint_bump')">
+                    <i class="fa-solid fa-circle-dot"></i><span>顆粒凸點</span>
+                </button>
+                <button class="case-btn btn-case-black" onclick="applyRealCase('paint_bubble')">
+                    <i class="fa-solid fa-spray-can"></i><span>漆面起泡</span>
+                </button>
+                <button class="case-btn btn-case-teal" onclick="applyRealCase('trim_bend')">
+                    <i class="fa-solid fa-border-all"></i><span>飾板變形</span>
+                </button>
+                <button class="case-btn btn-case-red" onclick="applyRealCase('engine_fail')">
+                    <i class="fa-solid fa-car-battery"></i><span>無法啟動</span>
+                </button>
+                <button class="case-btn" style="background-color: #94a3b8; cursor: default;">
+                    <i class="fa-solid fa-plus"></i><span>案例擴充</span>
+                </button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="form-group">
+                    <label class="label-with-check">
+                        <input type="checkbox" id="sync_plate_checked" onchange="updatePreview()"> <span>車牌</span>
+                    </label>
+                    <input type="text" id="car_plate" class="form-control" placeholder="ABC-1234" oninput="updatePreview()" style="height: 33px;">
+                </div>
+                <div class="form-group">
+                    <label class="label-with-check">
+                        <input type="checkbox" id="sync_vin_checked" onchange="updatePreview()"> <span>車身號碼 (VIN)</span>
+                    </label>
+                    <div class="vin-input-group">
+                        <input type="text" id="vin_code" class="form-control" placeholder="17位字元" oninput="updatePreview()" style="height: 33px;">
+                        <button type="button" class="btn-dam-quick" onclick="openModal('modal_dam_guide')">
+                            <i class="fa-solid fa-magnifying-glass"></i> 製造碼 (MDH) 辨識指南
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dida-didi-compact">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div><span class="dida-title">DIDA 案號</span><input type="text" id="dida_no" class="form-control" placeholder="輸入案號" oninput="updatePreview()"></div>
+                    <div><span class="didi-title">DIDI 案號</span><input type="text" id="didi_no" class="form-control" placeholder="輸入案號" oninput="updatePreview()"></div>
+                </div>
+                
+                <div class="checkbox-sub-grid">
+                    <label class="checkbox-item" style="color: #3b82f6;">
+                        <input type="checkbox" id="chk_flow_cif" onchange="updatePreview()"> <span>CIF紙本及電子檔</span>
+                    </label>
+                    <label class="checkbox-item" style="color: #10b981;">
+                        <input type="checkbox" id="chk_flow_media" onchange="updatePreview()"> <span>影片照片</span>
+                    </label>
+                    <label class="checkbox-item" style="color: #f59e0b;">
+                        <input type="checkbox" id="chk_flow_dtc" onchange="updatePreview()"> <span>故障碼</span>
+                    </label>
+                    <label class="checkbox-item" style="color: #8b5cf6;">
+                        <input type="checkbox" id="chk_flow_clock" onchange="updatePreview()"> <span>打卡</span>
+                    </label>
+                    <label class="checkbox-item" style="color: #ec4899;">
+                        <input type="checkbox" id="chk_flow_tsb" onchange="updatePreview()"> <span>TSB TSO</span>
+                    </label>
+                    <label class="checkbox-item" style="color: #14b8a6;">
+                        <input type="checkbox" id="chk_flow_isolve" onchange="updatePreview()"> <span>Isolve</span>
+                    </label>
+                </div>
+
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1; display: flex; flex-direction: column; gap: 6px;">
+                    <label class="checkbox-item" style="color: var(--color-red); font-weight: 700;">
+                        <input type="checkbox" id="chk_flow_postpone" onchange="updatePreview()"> 
+                        <span>⚠️ 車輛先交車DIDI後補，後續相關人員需注意。</span>
+                    </label>
+                    <label class="checkbox-item" style="color: #b45309; font-weight: 700;">
+                        <input type="checkbox" id="chk_flow_auth_wait" onchange="updatePreview()"> 
+                        <span>⚠️ 目前進行原廠事先授權，等候通知。</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="dms-syntax-box">
+                <div class="box-title-container">
+                    <span style="font-size: 12px; font-weight: bold; color: #5c4d3c;"><i class="fa-solid fa-calculator"></i> DMS 索賠專員打單工具</span>
+                    <div style="display: flex; align-items: center;">
+                        <button type="button" class="btn-docs-quick" onclick="openModal('modal_保固_docs')"><i class="fa-solid fa-file-invoice"></i> 保固操作流程簡報</button>
+                        <button type="button" class="btn-video-quick" onclick="openModal('modal_保固_video')"><i class="fa-brands fa-youtube"></i> 保固上課影片</button>
+                        <button type="button" class="btn-syntax-clear" onclick="clearDmsInputs()">取消</button>
+                        <button type="button" onclick="openModal('modal_expense_codes')" style="background: var(--jeep-tactical-green); border: none; padding: 2px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; color: #fff;">
+                            <i class="fa-solid fa-magnifying-glass"></i> 索賠種類分類碼
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="grid-container" style="display: grid; grid-template-columns: 1fr; gap: 0px; box-shadow: none; padding: 0px; border: none;">
+                    <div class="dms-grid-container">
+                        <div class="dms-input-wrapper">
+                            <input type="text" id="syntax_labor" class="form-control" placeholder="例：5540B31" style="font-size:11px; padding:4px;" oninput="buildSyntaxChain()">
+                            <span class="dms-permanent-label">主因工時</span>
+                        </div>
+                        <div class="dms-input-wrapper">
+                            <input type="text" id="part_no" class="form-control" placeholder="例：1" style="font-size:11px; padding:4px;" oninput="buildSyntaxChain()">
+                            <span class="dms-permanent-label">主因零件</span>
+                        </div>
+                        <div class="dms-input-wrapper">
+                            <input type="text" id="syntax_dtc" class="form-control" placeholder="例：BA" style="font-size:11px; padding:4px;" oninput="buildSyntaxChain()">
+                            <span class="dms-permanent-label">故障碼</span>
+                        </div>
+                        <div class="dms-input-wrapper">
+                            <input type="text" id="syntax_pos" class="form-control" placeholder="例：010" style="font-size:11px; padding:4px;" oninput="buildSyntaxChain()">
+                            <span class="dms-permanent-label">位置代碼</span>
+                            <div class="pos-quick-links">
+                                <button type="button" class="btn-pos-shortcut" onclick="injectPosCode('010')">010-LEFT</button>
+                                <button type="button" class="btn-pos-shortcut" onclick="injectPosCode('090')">090-RIGHT</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                    <span style="font-size: 11px; color:#475569;">拼裝結果：<strong id="syntax_result_text" style="color:var(--color-red);"></strong></span>
+                    <button type="button" onclick="copySyntaxResult()" style="background:var(--jeep-tactical-green); color:white; border:none; padding:2px 6px; border-radius:3px; font-size:11px; cursor:pointer;">複製主因鏈</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>選擇結案情境 (對抗系統時間差)</label>
+                <select id="scenario_select" class="form-control" onchange="applyScenario()">
+                    <option value="normal">一般保固/專案申報描述</option>
+                    <option value="scenario_a">情境 A：系統未鎖定 (請保固專員撤銷案件)</option>
+                    <option value="scenario_b">情境 B：系統已鎖定 (工資打零留存軌跡)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>車主車輛故障信息 (原始症狀)</label>
+                <textarea id="field_info" class="textarea-control" style="height: 60px;" placeholder="請輸入故障描述與客戶反應症狀..." oninput="updatePreview()"></textarea>
+            </div>
+            <div class="form-group">
+                <label>檢修過程 (技術因果邏輯)</label>
+                <textarea id="field_reason" class="textarea-control" style="height: 110px;" placeholder="請輸入查修過程與零件損壞因果關係..." oninput="updatePreview()"></textarea>
+            </div>
+            <div class="form-group">
+                <label>檢查 (最終處置項目與原廠零件案號)</label>
+                <textarea id="field_check" class="textarea-control" style="height: 110px;" placeholder="請在此輸入最終更換零件、處置與多行案號..." oninput="updatePreview()"></textarea>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title" style="color: var(--jeep-tactical-green);"><i class="fa-solid fa-eye"></i> DMS 系統欄位對應即時預覽</div>
+            <div class="form-group"><label>欄位 1：車主車輛故障信息 預覽</label><textarea id="out_info" class="textarea-output" readonly></textarea></div>
+            <div class="form-group"><label>欄位 2：檢修過程 預覽</label><textarea id="out_reason" class="textarea-output" readonly></textarea></div>
+            <div class="form-group"><label>欄位 3：檢查與處置 預覽</label><textarea id="out_check" class="textarea-output" readonly></textarea></div>
+            
+            <div class="form-group" style="margin-top: 12px; border-top: 2px solid #f1f5f9; padding-top: 10px;">
+                <label style="color: var(--jeep-tactical-green); font-weight: bold;"><i class="fa-solid fa-layer-group"></i> 全面板總合文本即時總覽 (合併全貌)</label>
+                <textarea id="out_combined_all" class="textarea-combined-output" readonly></textarea>
+            </div>
+
+            <button type="button" class="btn-combined-clear" onclick="clearAllCombinedPreviews()">
+                <i class="fa-solid fa-trash-arrow-up"></i> ❌ 一鍵清空報告總合內容
+            </button>
+
+            <button class="btn-submit" onclick="copyAllFields()">
+                <i class="fa-solid fa-copy"></i> 組合文本並一鍵複製到剪貼簿
+            </button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal_dam_guide">
+        <div class="modal-content" style="border-color: #5a824e; box-shadow: 0 0 20px rgba(90, 130, 78, 0.4); width: 620px;">
+            <button class="modal-close" onclick="closeModal('modal_dam_guide')"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-header-title" style="color: #7db86c; border-bottom-color: #23361e;"><i class="fa-solid fa-barcode"></i> JEEP 實體標籤製造碼 (MDH) 識別對照指南</div>
+            <p style="font-size: 12.5px; opacity: 0.85; line-height: 1.5; margin-bottom: 10px;">事先授權依照圖片內代碼依據。</p>
+            <div style="border-top: 1px solid #23361e; padding-top: 10px;">
+                <span style="font-size: 12px; font-weight: bold; color: #7db86c;"><i class="fa-solid fa-image"></i> 實體車身標籤位置參照（圖例指南）：</span>
+                <img src="https://raw.githubusercontent.com/xdespair0217/ALFA/main/TT01.jpg" alt="JEEP 製造碼標籤辨識圖指南" class="modal-embedded-img">
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal_保固_docs">
+        <div class="modal-content" style="border-color: #5a824e; box-shadow: 0 0 20px rgba(90, 130, 78, 0.4); width: 650px;">
+            <button class="modal-close" onclick="closeModal('modal_保固_docs')"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-header-title" style="color: #7db86c; border-bottom-color: #23361e;">📂 JEEP 核心保固文獻資料庫</div>
+            <div class="modal-sub-section">
+                <div class="modal-sub-title" style="color: #7db86c;"><i class="fa-solid fa-file-pdf"></i> 官方標準核銷流程</div>
+                <div class="modal-data-row">
+                    <span class="modal-data-label" style="width: 80px;">文件名稱：</span>
+                    <span class="modal-data-value">2026-06-11 JEEP 保固操作流程簡報 PGU</span>
+                    <button class="inline-copy-btn" onclick="quickCopyText('https://drive.google.com/file/d/1ATPKLaTGP_ppHVA-AOFqSNJST2LHNgI9/view?usp=sharing')">複製連結</button>
+                </div>
+                <div style="margin-top: 4px; text-align: right;">
+                    <a href="https://drive.google.com/file/d/1ATPKLaTGP_ppHVA-AOFqSNJST2LHNgI9/view?usp=sharing" target="_blank" class="modal-btn-action"><i class="fa-solid fa-external-link"></i> 打開 Google Drive 簡報</a>
+                </div>
+            </div>
+            <div class="modal-sub-section" style="border-top: 1px dashed #294223; padding-top: 12px;">
+                <div class="modal-sub-title" style="color: #7db86c;"><i class="fa-solid fa-clipboard-list"></i> 廠內常態自查重點</div>
+                <div class="modal-data-row">
+                    <span class="modal-data-label" style="width: 80px;">文件名稱：</span>
+                    <span class="modal-data-value">2026-06-11 JEEP保固上課 廠長整理</span>
+                    <button class="inline-copy-btn" onclick="quickCopyText('https://drive.google.com/file/d/1JDtoYSXev-C6LGdth2XLARUbsLOOiJFc/view?usp=sharing')">複製連結</button>
+                </div>
+                <div style="margin-top: 4px; text-align: right;">
+                    <a href="https://drive.google.com/file/d/1JDtoYSXev-C6LGdth2XLARUbsLOOiJFc/view?usp=sharing" target="_blank" class="modal-btn-action"><i class="fa-solid fa-external-link"></i> 打開 廠長整理精華</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal_保固_video">
+        <div class="modal-content" style="border-color: #5a824e; box-shadow: 0 0 20px rgba(90, 130, 78, 0.4); width: 620px;">
+            <button class="modal-close" onclick="closeModal('modal_保固_video')"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-header-title" style="color: #7db86c; border-bottom-color: #23361e;">🎥 原廠技術培訓資源庫</div>
+            <div class="modal-sub-section">
+                <div class="modal-sub-title" style="color: #7db86c;"><i class="fa-solid fa-video"></i> 課程名稱：2026-06-11 JEEP保固上課</div>
+                <div style="background: #1d2e19; padding: 15px; border-radius: 8px; border: 1px solid #294223; margin-top: 10px; display: flex; flex-direction: column; gap: 12px;">
+                    <div style="font-size: 13px; color: #cbd5e1; line-height: 1.4;">技術同仁與接待 SA 在針對吉普車系執行保固判定、操作 Tempario 語法或排除 DMS 系統時間差時，若有任何不確定之處，請務必點擊下方連結回溯完整錄影。</div>
+                    <div style="display: flex; gap: 8px; margin-top: 5px;">
+                        <a href="https://youtu.be/EVE_ZunvKNM?si=e4OSu_9mkxTipTTs" target="_blank" class="modal-btn-action" style="background: #b91c1c;"><i class="fa-brands fa-youtube"></i> 點開 YouTube 線上課程影片</a>
+                        <button class="inline-copy-btn" style="padding: 0 12px; font-weight: bold;" onclick="quickCopyText('https://youtu.be/EVE_ZunvKNM?si=e4OSu_9mkxTipTTs')">複製影片網址</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal_linkentry_sop">
+        <div class="modal-content" style="border-color: #5a824e; box-shadow: 0 0 20px rgba(90, 130, 78, 0.4);">
+            <button class="modal-close" onclick="closeModal('modal_linkentry_sop')"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-header-title" style="color: #7db86c; border-bottom-color: #23361e;">09. 服務顧問可以進入 Link-e-entry 並了解功能</div>
+            <div class="modal-sub-section">
+                <div class="modal-sub-title"><i class="fa-solid fa-key"></i> 【核心登入資訊】</div>
+                <div class="modal-data-row"><span class="modal-data-label">帳號：</span><span class="modal-data-value">TW-I482000.D037</span><button class="inline-copy-btn" onclick="quickCopyText('TW-I482000.D037')">複製帳號</button></div>
+                <div class="modal-data-row"><span class="modal-data-label">密碼：</span><span class="modal-data-value">ZZZ.zzz33</span><button class="inline-copy-btn" onclick="quickCopyText('ZZZ.zzz33')">複製密碼</button></div>
+                <div class="modal-data-row"><span class="modal-data-label">經銷商代碼：</span><span class="modal-data-value">53539</span></div>
+            </div>
+            <div class="modal-sub-section" style="border-top: 1px dashed #294223; padding-top: 12px;">
+                <div class="modal-sub-title" style="color: #7db86c;"><i class="fa-solid fa-desktop"></i> 🖥️ 【診斷與查修系統】</div>
+                <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: #1a2917; padding: 10px; border-radius: 6px;">
+                        <div><span style="font-size:13px; font-weight:bold; color:#cbd5e1;">🔹 wiTECH 診斷介面</span></div>
+                        <a href="https://app.a.fcawitech.com/" target="_blank" class="modal-btn-action" style="background:#15803d; padding: 6px 12px; font-size:12px;"><i class="fa-solid fa-arrow-up-right-from-square"></i> 開啟系統</a>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: #1a2917; padding: 10px; border-radius: 6px;">
+                        <div><span style="font-size:13px; font-weight:bold; color:#cbd5e1;">🔹 Library Stellantis (電路圖/查修/零件)</span></div>
+                        <a href="https://library.stellantistools.com/" target="_blank" class="modal-btn-action" style="background:#15803d; padding: 6px 12px; font-size:12px;"><i class="fa-solid fa-arrow-up-right-from-square"></i> 開啟系統</a>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-sub-section" style="border-top: 1px dashed #294223; padding-top: 12px;">
+                <div class="modal-sub-title"><i class="fa-solid fa-globe"></i> 【Link e Entry 服務入口】</div>
+                <div style="margin-top: 5px;"><a href="https://linkentry-euro.fiat.com/pages/home/" target="_blank" class="modal-btn-action"><i class="fa-solid fa-arrow-up-right-from-square"></i> 進入 Link e Entry 系統</a></div>
+            </div>
+            <div class="modal-sub-section">
+                <div class="modal-sub-title"><i class="fa-solid fa-sitemap"></i> ⚙️ ePER (查零件資料)</div>
+                <div style="padding-left: 20px; font-size:12px; color:#cbd5e1;">路徑：Aftersales ➔ After sales Menu ➔ ePER</div>
+                <div class="modal-sub-title" style="margin-top: 10px;"><i class="fa-solid fa-book-open"></i> 📖 eLearn (服務資訊/技術程序/學習)</div>
+                <div style="padding-left: 20px; font-size:12px; color:#cbd5e1;">路徑：Aftersales ➔ After sales Menu ➔ eLEARN</div>
+                <div class="modal-sub-title" style="margin-top: 10px;"><i class="fa-solid fa-stopwatch"></i> ⏱️ Tempario (工時資訊)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal_expense_codes">
+        <div class="modal-content" style="width: 760px; border-color: #5a824e;">
+            <button class="modal-close" onclick="closeModal('modal_expense_codes')"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-header-title">📋 索賠種類分類碼 (Expense Code) 判斷保固案件類型對照表</div>
+            <table class="modal-table" style="font-size: 12px; margin-bottom: 15px;">
+                <thead><tr><th style="width:80px;">代碼</th><th style="width:140px;">項目名稱</th><th>保固條件與說明</th><th style="width:60px; text-align:center;">操作</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>P06</strong></td><td>新車售前錯裝/短裝</td><td>PDI新車整備時，發現車輛硬體與訂單內容不相符，零件錯裝或缺裝，需進行修正。</td><td style="text-align:center;"><button class="inline-copy-btn" onclick="quickCopyText('P06')">複製</button></td></tr>
+                    <tr><td><strong>PV0</strong></td><td>新車售前漆面保固</td><td>PDI新車整備時所發現的漆面品質異常，需進行修復。</td><td style="text-align:center;"><button class="inline-copy-btn" onclick="quickCopyText('PV0')">複製</button></td></tr>
+                    <tr><td><strong>P01</strong></td><td>新車售前保固</td><td>PDI新車整備時所發現的車輛故障、產品缺陷等等，需進行修復。</td><td style="text-align:center;"><button class="inline-copy-btn" onclick="quickCopyText('P01')">複製</button></td></tr>
+                    <tr><td><strong>W36</strong></td><td>新車保固</td><td>適用於自車輛首次掛牌日開始計算3年或10萬公里內所發生的新車產品瑕疵。</td><td style="text-align:center;"><button class="inline-copy-btn" onclick="quickCopyText('W36')">複製</button></td></tr>
+                    <tr><td><strong>WB0</strong></td><td>牽引電池保固</td><td>適用於自車輛首次掛牌日開始計算8年或16萬公里內所發生的牽引電池故障。</td><td style="text-align:center;"><button class="inline-copy-btn" onclick="quickCopyText('WB0')">複製</button></td></tr>
+                    <tr><td><strong>V36</strong></td><td>新車漆面保固</td><td>適用於自車輛首次掛牌日開始計算3年或10萬公里內所發生的車身漆面瑕疵。</td><td style="text-align:center;"><button class="inline-copy-btn" onclick="quickCopyText('V36')">複製</button></td></tr>
+                    <tr><td><strong>R96</strong></td><td>車身鏽穿孔保固</td><td>適用於自車輛首次掛牌日開始計算3年或10萬公里內所發生的車身鈑金鏽穿孔保固瑕疵。</td><td style="text-align:center;"><button class="inline-copy-btn" onclick="quickCopyText('R96')">複製</button></td></tr>
+                    <tr><td><strong>A01</strong></td><td>品質提升專案</td><td>JEEP 品質提升專案所專用的分類碼。</td><td style="text-align:center;"><button class="inline-copy-btn" onclick="quickCopyText('A01')">複製</button></td></tr>
+                </tbody>
+            </table>
+            <div style="border-top: 1px solid #23361e; padding-top: 10px;">
+                <span style="font-size: 12px; font-weight: bold; color: #7db86c;"><i class="fa-solid fa-diagram-project"></i> DMS 實體系統對應位置指南：</span>
+                <img src="https://raw.githubusercontent.com/xdespair0217/ALFA/main/A09.png" alt="DMS 系統對應位置指南" class="modal-embedded-img">
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal_core_1"><div class="modal-content"><button class="modal-close" onclick="closeModal('modal_core_1')"><i class="fa-solid fa-xmark"></i></button><div class="modal-header-title">壹、時間戳記與流程鐵律</div><ul class="modal-list"><li><strong>工單開立鐵律 (進廠日 = 診斷日)：</strong> 車輛進廠確認後，務必「先開立服務工單，方能做任何診斷與拆裝」。</li><li><strong>完工送件「7 天黃金期」：</strong> 維修完成後，必須於 7 天內在 DMS 系統中提交所賠申請。</li><li><strong>全流程「35 天極限」：</strong> 從車輛進廠「開單日」起算，至 DMS「送件日」止，整個保固案件生命週期必須在 35 天內結案完成。</li><li><strong>退件更正「5 天限時令」：</strong> 案件若因資料不齊遭原廠退件，同仁必須在 5 天內完成更正並重新上傳。</li></ul></div></div>
+    <div class="modal-overlay" id="modal_core_2"><div class="modal-content"><button class="modal-close" onclick="closeModal('modal_core_2')"><i class="fa-solid fa-xmark"></i></button><div class="modal-header-title">貳、技術診斷與「預先授權」六大敏感邊界</div><table class="modal-table"><thead><tr><th style="width:50px;">編號</th><th style="width:140px;">項目</th><th>規範 / 基準</th></tr></thead><tbody><tr><td>1</td><td><strong>總維修費用超標</strong></td><td>單一保固案件之總維修費用高於台幣 85,000 元基準。</td></tr><tr><td>2</td><td><strong>漆面與防蝕相關</strong></td><td>所有與車身漆面品質、防鏽蝕穿孔保固相關的維修。</td></tr><tr><td>3</td><td><strong>未領牌車輛組件</strong></td><td>未領牌新車在 PDI 階段發現的短裝、錯裝領組件案件。</td></tr><tr><td>4</td><td><strong>特定技術文獻</strong></td><td>技術通報（TSB）或 TSO 條款中明確規定需要事前授權之項目。</td></tr><tr><td>5</td><td><strong>車輪與底盤整備</strong></td><td>車輪更換、底盤定位或平衡。</td></tr><tr><td>6</td><td><strong>核心動力核心</strong></td><td>大電池（牽引電池）的任何維修與更換。</td></tr></tbody></table><div class="badge-warning"><strong>⚠️ 核銷極限：</strong>取得預先授權編號後，必須在 60 天內申請所賠，逾期取消。</div></div></div>
+    <div class="modal-overlay" id="modal_core_3"><div class="modal-content"><button class="modal-close" onclick="closeModal('modal_core_3')"><i class="fa-solid fa-xmark"></i></button><div class="modal-header-title">參、數位佐證矩陣與舊品保存規範</div><p style="font-size:13px; color:#7db86c; font-weight:700;">1. DMS 出保必備之「數位佐證矩陣」</p><ul class="modal-list"><li><strong>完工交車單：</strong>必須填入明確的「完工日期」。</li><li><strong>完整簽名矩陣：</strong>具備客戶、技術、接待、終檢人員及廠長的完整簽名。</li><li><strong>維修打卡紀錄 (工時 ±20% 限制)：</strong>打卡時間不得高於或低於標準工時的 20%。</li><li><strong>零件發料明細表 / 車輛行照 / 視覺化故障影像：</strong>相片需清晰，錄影切勿超過 30秒。</li></ul><p style="font-size:13px; color:#15803d; font-weight:700; margin-top:10px;">2. 保固舊品 (故障件) 管理條款</p><ul class="modal-list"><li>廠內必須妥善保存 90 天，以防原廠隨時抽查、寄回。</li></ul></div></div>
+    <div class="modal-overlay" id="modal_core_4"><div class="modal-content"><button class="modal-close" onclick="closeModal('modal_core_4')"><i class="fa-solid fa-xmark"></i></button><div class="modal-header-title">肆、原廠系統實作 (DMS / LinkEntry / Tempario)</div><p style="font-size:13px; font-weight:700; color:#f59e0b;">代碼缺失之「截圖回報機制」</p><ul class="modal-list"><li>系統中無對應之公制工時代碼，必須將 Tempario 完整截圖，以 Email 正式發送給管理團隊。<strong>嚴禁使用 Line 傳送</strong>。</li><li>針對特定品質專案，若原廠在出廠前已全數施作完成，各廠站直接免除執行。但若系統跳出待執行專案，則必須確實實施。</li></ul></div></div>
+    <div class="modal-overlay" id="modal_core_5"><div class="modal-content"><button class="modal-close" onclick="closeModal('modal_core_5')"><i class="fa-solid fa-xmark"></i></button><div class="modal-header-title">伍、2026 年度原廠保固稽核整備</div><ul class="modal-list"><li><strong>風暴啟動：</strong>2026 年度原廠保固稽核已正式啟動。</li><li><strong>即刻自查：</strong>各廠站自查前六個月的所有保固案件。</li><li><strong>追溯扣款風險：</strong>事後稽核一旦發現流程或資料不齊，將執行追溯扣款。</li></ul></div></div>
+
+    <div id="toast_msg" class="toast"></div>
+
+    <script>
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.style.display = 'none';
+            }
+        }
+
+        function clearDmsInputs() {
+            document.getElementById('syntax_labor').value = '';
+            document.getElementById('part_no').value = '';
+            document.getElementById('syntax_dtc').value = '';
+            document.getElementById('syntax_pos').value = '';
+            document.getElementById('syntax_result_text').innerText = '';
+            showToast("❌ 打單欄位已成功重置");
+            updatePreview();
+        }
+
+        function injectPosCode(code) {
+            document.getElementById('syntax_pos').value = code;
+            buildSyntaxChain();
+        }
+
+        function clearAllCombinedPreviews() {
+            document.getElementById('field_info').value = '';
+            document.getElementById('field_reason').value = '';
+            document.getElementById('field_check').value = '';
+            
+            document.getElementById('sync_plate_checked').checked = false;
+            document.getElementById('sync_vin_checked').checked = false;
+            document.getElementById('chk_flow_cif').checked = false;
+            document.getElementById('chk_flow_media').checked = false;
+            document.getElementById('chk_flow_dtc').checked = false;
+            document.getElementById('chk_flow_clock').checked = false;
+            document.getElementById('chk_flow_tsb').checked = false;
+            document.getElementById('chk_flow_isolve').checked = false;
+            document.getElementById('chk_flow_postpone').checked = false;
+            document.getElementById('chk_flow_auth_wait').checked = false;
+            
+            updatePreview();
+            showToast("❌ 報告總合預覽內容已全數清空歸零");
+        }
+
+        function buildSyntaxChain() {
+            const labor = document.getElementById('syntax_labor').value.trim();
+            const part = document.getElementById('part_no').value.trim();
+            const dtc = document.getElementById('syntax_dtc').value.trim();
+            const pos = document.getElementById('syntax_pos').value.trim();
+            
+            let chain = [];
+            if(labor) chain.push(labor);
+            if(part) chain.push(part);
+            if(dtc) chain.push(dtc);
+            if(pos) chain.push(pos);
+            
+            const result = chain.join('-');
+            document.getElementById('syntax_result_text').innerText = result;
+            updatePreview();
+        }
+
+        function copySyntaxResult() {
+            const text = document.getElementById('syntax_result_text').innerText;
+            if(!text) { alert('請先輸入資料以生成代碼鏈'); return; }
+            quickCopyText(text);
+        }
+
+        function quickCopyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`已複製: ${text}`);
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast_msg');
+            toast.innerText = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        }
+
+        function applyScenario() {
+            const scenario = document.getElementById('scenario_select').value;
+            const today = new Date().toISOString().slice(0, 10);
+            if (scenario === 'scenario_a') {
+                document.getElementById('field_check').value = `【情境A - 系統未鎖定】此案件經交叉驗證發現於他站重複。已第一時間直接聯繫並請保固專員撤銷該筆案件。`;
+            } else if (scenario === 'scenario_b') {
+                document.getElementById('field_check').value = `【情境B - 系統已鎖定無法撤銷】於內部系統直接進行「工資打零」結案。備註註明：「已於 [${today}] 於 [廠區] 完成該專案 (憑據號碼: XXX)」，確保作業軌跡完整。`;
+            }
+            updatePreview();
+        }
+
+        function applyRealCase(caseType) {
+            if (caseType === 'paint_color') {
+                document.getElementById('field_info').value = "🎨 車主反應/進廠整備自查：油箱蓋及右前門漆面異色。";
+                document.getElementById('field_reason').value = "經新車整備外觀缺陷判定，確認原廠出廠時漆面色澤不均、存在異色。";
+                document.getElementById('field_check').value = "進行油箱蓋及右前門漆面重新塗裝修復。\n原廠料號明細：\n156162354\n50557000";
+            } 
+            else if (caseType === 'paint_bump') {
+                document.getElementById('field_info').value = "🎨 車主反應/進廠整備自查：右前門漆面顆粒凸點。";
+                document.getElementById('field_reason').value = "經新車整備外觀缺陷判定，確認原廠塗裝塗層落入異物，形成局部凸點缺陷。";
+                document.getElementById('field_check').value = "執行右前門漆面局部整平與重新塗裝。\n原廠料號明細：\n50557000";
+            } 
+            else if (caseType === 'paint_bubble') {
+                document.getElementById('field_info').value = "🎨 車主反應/進廠整備自查：引擎蓋及前保險桿漆面起泡。";
+                document.getElementById('field_reason').value = "經新車整備外觀缺陷判定，確認底層防鏽或面漆附著力異常，導致局部漆面起泡。";
+                document.getElementById('field_check').value = "安排引擎蓋及前保險桿漆面剝除、表面整備與重新塗裝。\n原廠料號明細：\n50565019\n50582385";
+            } 
+            else if (caseType === 'trim_bend') {
+                document.getElementById('field_info').value = "🚗 車主反應/進廠整備自查：尾門玻璃左右側飾板變形。";
+                document.getElementById('field_reason').value = "經新車整備外觀缺陷判定，組件材質受熱應力或原廠錯裝短裝影響，導致塑膠外飾板擠壓變形。";
+                document.getElementById('field_check').value = "將變形外飾板拆卸，更換原廠全新改良飾板組件。\n原廠料號明細：\n156156929\n156156931";
+            } 
+            else if (caseType === 'engine_fail') {
+                document.getElementById('field_info').value = "⚡ This car unable to start the engine, no cranking sound during the start/stop button press.";
+                document.getElementById('field_reason').value = "0.check the battery condition, good.\n1.use the witech 2 check the DTC, the key DTC is P26E4-00(ECM or BCM starter Relay open or broken fuse or short to ground of Vsensing feedback) from ECM.\n2.When i press the start button, i check the voltage pin 21 of the B003(main starter relay) connector B, the voltage is \"0\", further check the voltage pin 1 of the M001 connector C, got the \"0\" voltage as well.\n3.check the voltage of the pin 19 and pin 20 of the M001 connector C, we got the battery voltage, and also check the B001 F03,F16 fuse no burn off, and check the B010 fuse no burn as well off finding.\n4.continualty check from pin 1 of M001 to pin 21 of B003(main starter relay) connector B, no issue be found.\n5.check the \"isolation\" of the pin 1 of M001 to pin 21 of B003(main starter relay) connector B, no issue be found.\n6. I have swap the B003 from demo car the problem still exists.\nFollow the service library the problem is dedicate to the BCM(M001)";
+                document.getElementById('field_check').value = "Please give us some repairing advice.\n(安排更換車身控制模組 BCM 且重新配置鎖定軌跡。)";
+            }
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const plate = document.getElementById('car_plate').value || '---';
+            const vin = document.getElementById('vin_code').value || '---';
+            
+            const syncPlate = document.getElementById('sync_plate_checked').checked;
+            const syncVin = document.getElementById('sync_vin_checked').checked;
+
+            let headerLine = "";
+            if (syncPlate) {
+                headerLine += `車牌: ${plate}`;
+            }
+            if (syncVin) {
+                if (headerLine !== "") headerLine += " | ";
+                headerLine += `VIN: ${vin}`;
+            }
+            if (headerLine !== "") {
+                headerLine += "\n";
+            }
+
+            const dida = document.getElementById('dida_no').value.trim();
+            const didi = document.getElementById('didi_no').value.trim();
+            
+            let idLine = "";
+            if (dida) idLine += `DIDA 案號: ${dida} `;
+            if (didi) idLine += `DIDI 案號: ${didi} `;
+            if (idLine !== "") idLine += "\n";
+
+            let selectedItems = [];
+            if (document.getElementById('chk_flow_cif').checked) selectedItems.push("CIF紙本及電子檔");
+            if (document.getElementById('chk_flow_media').checked) selectedItems.push("影片照片");
+            if (document.getElementById('chk_flow_dtc').checked) selectedItems.push("故障碼");
+            if (document.getElementById('chk_flow_clock').checked) selectedItems.push("打卡");
+
+            let didiGroupLine = "";
+            if (selectedItems.length > 0) {
+                didiGroupLine = `【${selectedItems.join('、')}】以上傳DIDI群組\n`;
+            }
+
+            let techStatusLine = "";
+            const tsbChecked = document.getElementById('chk_flow_tsb').checked;
+            const isolveChecked = document.getElementById('chk_flow_isolve').checked;
+
+            if (tsbChecked || isolveChecked) {
+                let statusParts = [];
+                if (tsbChecked) statusParts.push("有無TSB TSO");
+                if (isolveChecked) statusParts.push("有無Isolve");
+                techStatusLine = `技術研判 ➔ 【${statusParts.join(' | ')}】\n`;
+            }
+
+            let postponeLine = "";
+            if (document.getElementById('chk_flow_postpone').checked) {
+                postponeLine = "⚠️ 車輛先交車DIDI後補，後續相關人員需注意。\n";
+            }
+            
+            let authWaitLine = "";
+            if (document.getElementById('chk_flow_auth_wait').checked) {
+                authWaitLine = "⚠️ 目前進行原廠事先授權，等候通知。\n";
+            }
+
+            const rawInfo = document.getElementById('field_info').value;
+            const rawReason = document.getElementById('field_reason').value;
+            const rawCheck = document.getElementById('field_check').value;
+
+            const finalInfo = `${headerLine}${idLine}${didiGroupLine}${techStatusLine}${postponeLine}${authWaitLine}${rawInfo}`;
+            document.getElementById('out_info').value = finalInfo;
+            document.getElementById('out_reason').value = rawReason;
+            document.getElementById('out_check').value = rawCheck;
+
+            document.getElementById('out_combined_all').value = 
+`=== 欄位1：車主車輛故障信息 ===
+${finalInfo}
+
+=== 欄位2：檢修過程 ===
+${rawReason}
+
+=== 欄位3：檢查與處置 ===
+${rawCheck}`;
+        }
+
+        function copyAllFields() {
+            const combinedText = document.getElementById('out_combined_all').value;
+            if(!combinedText || combinedText.trim() === "=== 欄位1：車主車輛故障信息 ===\n---\n\n=== 欄位2：檢修過程 ===\n\n\n=== 欄位3：檢查與處置 ===") {
+                alert('目前總覽區無有效內容可供複製！');
+                return;
+            }
+            navigator.clipboard.writeText(combinedText).then(() => {
+                showToast("總合文本已成功複製到剪貼簿！");
+            }).catch(err => { 
+                alert('複製失敗，請手動複製總覽框文字。'); 
+            });
+        }
+
+        window.onload = function() {
+            updatePreview();
+        }
+    </script>
+</body>
+</html>
