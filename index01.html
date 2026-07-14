@@ -20,7 +20,7 @@
     <!-- 頂部標頭列 -->
     <header class="flex justify-between items-center border-b border-gray-800 pb-4 mb-4">
         <div class="flex items-center space-x-4">
-            <!-- 仿 Alfa 熱血紅盾牌圓標 -->
+            <!-- 仿 Alfa 熱血紅圓標 -->
             <div class="w-12 h-12 bg-red-700 rounded-full flex items-center justify-center font-black text-white text-xs tracking-wider shadow-md shadow-red-900/30">ALFA</div>
             <div>
                 <h1 class="text-2xl font-black text-white tracking-wide">ALFA ROMEO 數位保養看板</h1>
@@ -30,7 +30,7 @@
         
         <!-- 里程套餐切換鈕 (由資料動態生成) -->
         <div id="package-tabs" class="flex space-x-2">
-            <span class="text-sm text-gray-500">正在加載保養套餐項目...</span>
+            <span class="text-sm text-gray-500">正在辨識保養套餐項目...</span>
         </div>
 
         <button onclick="fetchSheetData()" class="bg-[#161b22] hover:bg-gray-800 text-gray-300 hover:text-white text-xs px-4 py-2 rounded-lg transition-all border border-gray-700 flex items-center space-x-1.5">
@@ -38,14 +38,14 @@
         </button>
     </header>
 
-    <!-- 主顯示區：左 7/12 表格，右 5/12 零件圖片牆 -->
+    <!-- 主顯示區 -->
     <main class="flex-1 flex space-x-6 overflow-hidden">
         
         <!-- 左側：保養套餐表格 -->
         <section class="w-7/12 flex flex-col bg-[#161b22] rounded-xl border border-gray-800 p-5 overflow-hidden shadow-2xl">
             <div class="flex justify-between items-center mb-3">
                 <h2 id="current-package-title" class="text-lg font-bold text-red-500 flex items-center">
-                    <span class="w-2 h-5 bg-red-600 inline-block mr-2 rounded-sm"></span>正在加載資料...
+                    <span class="w-2 h-5 bg-red-600 inline-block mr-2 rounded-sm"></span>連線成功，正在排版中...
                 </h2>
                 <span class="text-[10px] bg-green-950 text-green-400 border border-green-900 px-2.5 py-0.5 rounded-full font-semibold">連線正常</span>
             </div>
@@ -100,10 +100,10 @@
     </main>
 
     <script>
-        // 你的專屬 Google 試算表 CSV 傳輸線網址 (已自動綁定)
+        // 你的專屬 Google 試算表 CSV 網址
         const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5HdgQrIifhCs12XLfy8GP_SF9znHAhkvr4yl_U7RFP712U3EOATCSm0_-h6aDtF2LA4kSwImjRcEp/pub?gid=548899643&single=true&output=csv";
 
-        // 預設的高質感零件對照圖片庫 (若料號比對成功，網頁會自動秀出這張圖)
+        // 高質感零件對照圖片庫
         const IMAGE_LIBRARY = {
             "0055232574": "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=300&q=80", // 螺絲
             "04892339BE": "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=300&q=80", // 機油芯
@@ -112,10 +112,9 @@
             "SH0030": "https://images.unsplash.com/photo-1621259182978-f09e5e2ab09a?auto=format&fit=crop&w=300&q=80"     // 機油
         };
 
-        let allParsedPackages = {}; // 存放解析完的所有套餐資料
+        let allParsedPackages = {}; 
         let currentPackageKey = "";
 
-        // 1. 動態從雲端抓取 CSV 資料
         async function fetchSheetData() {
             try {
                 const response = await fetch(GOOGLE_SHEET_CSV_URL);
@@ -127,43 +126,48 @@
             }
         }
 
-        // 2. 核心解析邏輯：看懂 Excel 的排版
         function parseExcelCSV(csvText) {
-            const rows = csvText.split('\n').map(row => {
-                // 用正則表達式安全拆解 CSV (避免品名裡面含有逗號造成混亂)
-                return row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim());
-            });
-
+            const lines = csvText.split('\n');
             const packages = {};
-            let currentPackageName = "";
+            
+            // 第一個預設套餐名稱，如果在看到任何套餐名稱前有資料，就塞到這裡
+            let currentPackageName = "1000KM 套餐"; 
+            packages[currentPackageName] = {
+                name: currentPackageName,
+                items: []
+            };
 
-            rows.forEach((cols, idx) => {
-                if (idx === 0 || cols.length < 7) return; // 跳過第一行標題
+            lines.forEach((line, idx) => {
+                // 正則安全拆解 CSV 欄位
+                const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim());
+                if (cols.length < 3) return;
 
-                const firstCell = cols[0];
-
-                // 判斷是否為「里程套餐」的標題行 (例如：1000KM套餐、5000KM套餐)
-                if (firstCell && firstCell.includes("套餐") && !cols[1]) {
-                    currentPackageName = firstCell;
+                // 【全新智慧辨識邏輯】
+                // 檢查這一列是否有任何一格含有「套餐」字眼
+                const foundPackageCell = cols.find(cell => cell && cell.includes("套餐"));
+                
+                if (foundPackageCell) {
+                    // 如果找到了像「5000KM套餐」這樣的字，我們就開一個新的套餐分頁
+                    currentPackageName = foundPackageCell;
                     packages[currentPackageName] = {
                         name: currentPackageName,
-                        items: [],
-                        total: 0
+                        items: []
                     };
                     return;
                 }
 
-                // 如果目前已經有套餐名稱，且這一行是合格的零件/工資資料
-                if (currentPackageName && cols[1] && cols[1] !== "料號") {
-                    const attr = cols[0];       // 屬性
-                    const partId = cols[1];     // 料號
-                    const name = cols[2];       // 項目
-                    const price = cols[3];      // 單價
-                    const qty = cols[4];        // 數量
-                    const discount = cols[5];   // 打折
-                    const subtotal = cols[6];   // 加總
+                // 確保這一行是合格的資料列（有屬性、有料號、且不是標題列「屬性」、「料號」）
+                const attr = cols[0] ? cols[0].trim() : "";
+                const partId = cols[1] ? cols[1].trim() : "";
+                const name = cols[2] ? cols[2].trim() : "";
 
-                    // 清理金額格式 (去掉 $ 符號和逗號)
+                if (partId && partId !== "料號" && attr !== "屬性") {
+                    const price = cols[3] ? cols[3].trim() : "";
+                    const qty = cols[4] ? cols[4].trim() : "";
+                    const discount = cols[5] ? cols[5].trim() : "";
+                    const subtotal = cols[6] ? cols[6].trim() : "";
+
+                    // 清理金額格式以便加總
                     const cleanSubtotal = parseFloat(subtotal.replace(/[^0-9.-]+/g, "")) || 0;
 
                     packages[currentPackageName].items.push({
@@ -172,18 +176,22 @@
                 }
             });
 
+            // 整理：如果初始預設的 1000KM 套餐沒抓到東西，就將其刪除
+            if (packages["1000KM 套餐"] && packages["1000KM 套餐"].items.length === 0) {
+                delete packages["1000KM 套餐"];
+            }
+
             allParsedPackages = packages;
 
-            // 初始化選單按鈕
             const keys = Object.keys(allParsedPackages);
             if (keys.length > 0) {
                 renderTabs(keys);
-                // 預設切換到第一個套餐 (例如 1000KM 套餐)
                 switchPackage(keys[0]);
+            } else {
+                document.getElementById('current-package-title').innerText = "⚠️ 找不到任何套餐項目，請確認試算表格式";
             }
         }
 
-        // 3. 渲染套餐切換按鈕 (Tab)
         function renderTabs(keys) {
             const tabsContainer = document.getElementById('package-tabs');
             tabsContainer.innerHTML = keys.map(key => `
@@ -193,11 +201,9 @@
             `).join('');
         }
 
-        // 4. 切換套餐畫面
         function switchPackage(key) {
             if (!allParsedPackages[key]) return;
 
-            // 調整按鈕選取視覺
             if (currentPackageKey) {
                 const prevTab = document.getElementById(`tab-${currentPackageKey}`);
                 if (prevTab) prevTab.className = "px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-[#161b22] text-gray-400 hover:bg-gray-800 border border-gray-800";
@@ -208,7 +214,6 @@
             currentPackageKey = key;
             const pkg = allParsedPackages[key];
 
-            // 渲染左側表格
             document.getElementById('current-package-title').innerHTML = `<span class="w-2 h-5 bg-red-600 inline-block mr-2 rounded-sm"></span>${pkg.name}`;
             
             let tableHTML = '';
@@ -218,7 +223,6 @@
             pkg.items.forEach(item => {
                 calcTotal += item.cleanSubtotal;
 
-                // 左側表格 HTML
                 tableHTML += `
                     <tr id="row-${item.partId}" class="border-b border-gray-800 hover:bg-[#1f242c] transition-colors cursor-pointer" onclick="syncHighlight('${item.partId}')">
                         <td class="p-3 text-xs text-gray-400 font-medium">${item.attr}</td>
@@ -231,7 +235,6 @@
                     </tr>
                 `;
 
-                // 右側圖片 HTML（工資項目不畫圖）
                 if (item.attr !== "工資" && item.partId) {
                     const imgUrl = IMAGE_LIBRARY[item.partId] || "https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?auto=format&fit=crop&w=300&q=80";
                     gridHTML += `
@@ -253,20 +256,16 @@
             document.getElementById('package-total').innerText = `$ ${calcTotal.toLocaleString()}`;
         }
 
-        // 5. 滑鼠點擊雙向連動高亮
         function syncHighlight(partId) {
-            // 清除先前的高亮
             document.querySelectorAll('tr').forEach(el => el.classList.remove('active-row'));
             document.querySelectorAll('#image-grid > div').forEach(el => el.classList.remove('active-card'));
 
-            // 加上高亮
             const row = document.getElementById(`row-${partId}`);
             const card = document.getElementById(`card-${partId}`);
             if (row) row.classList.add('active-row');
             if (card) card.classList.add('active-card');
         }
 
-        // 開網頁自動執行
         fetchSheetData();
     </script>
 </body>
