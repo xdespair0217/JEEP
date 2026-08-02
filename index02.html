@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeep 越野專業多車型保養看板</title>
+    <!-- 使用 Tailwind CSS 打造硬派越野暗色風格 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0c100d; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #141a15; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2d382e; border-radius: 3px; }
+        .active-row { background-color: #1a231c !important; border-left: 4px solid #48683e !important; }
+        .active-card { border-color: #48683e !important; background-color: #1e2920 !important; transform: scale(1.02); }
+    </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col p-6 relative">
+
+    <!-- 頂部標頭列 -->
+    <header class="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b border-emerald-950/60 pb-4 mb-4 gap-4">
+        <div class="flex items-center space-x-4 shrink-0">
+            <!-- Jeep 越野軍綠風格標誌 -->
+            <div class="w-12 h-12 bg-emerald-800 border-2 border-emerald-600 rounded-lg flex items-center justify-center font-black text-white text-xs tracking-widest shadow-md shadow-emerald-950/50">JEEP</div>
+            <div>
+                <!-- 車型切換下拉選單 -->
+                <div class="flex items-center space-x-2">
+                    <label for="car-model-select" class="text-xs text-emerald-500/80 font-bold">目前展示車型：</label>
+                    <select id="car-model-select" onchange="switchCarModel(this.value)" class="bg-[#141a15] text-white border border-emerald-800 rounded px-2 py-1 text-sm font-bold focus:outline-none focus:border-emerald-500 cursor-pointer">
+                        <!-- 由 JavaScript 自動帶入 Jeep 車型清單 -->
+                    </select>
+                </div>
+                <p class="text-[10px] text-gray-500 mt-1">數據來源：Google 雲端同步試算表（Jeep 專屬發布分頁）</p>
+            </div>
+        </div>
+        
+        <!-- 套餐切換鈕區域 -->
+        <div id="package-tabs" class="flex flex-wrap gap-2 max-w-2xl justify-start lg:justify-center">
+            <span class="text-sm text-gray-500">正在辨識保養套餐項目...</span>
+        </div>
+
+        <button onclick="fetchSheetData()" class="bg-[#141a15] hover:bg-emerald-950 text-gray-300 hover:text-white text-xs px-4 py-2 rounded-lg transition-all border border-emerald-800/80 flex items-center space-x-1.5 shrink-0">
+            <span>🔄</span> <span>手動重新整理</span>
+        </button>
+    </header>
+
+    <!-- 主顯示區 -->
+    <main class="flex-1 flex space-x-6 overflow-hidden">
+        
+        <!-- 左側：保養套餐表格 -->
+        <section class="w-7/12 flex flex-col bg-[#141a15] rounded-xl border border-emerald-950 p-5 overflow-hidden shadow-2xl">
+            <div class="flex justify-between items-center mb-3">
+                <h2 id="current-package-title" class="text-lg font-bold text-emerald-400 flex items-center">
+                    <span class="w-2 h-5 bg-emerald-600 inline-block mr-2 rounded-sm"></span>連線成功，正在排版中...
+                </h2>
+                <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-0.5 rounded-full font-semibold">連線正常</span>
+            </div>
+
+            <!-- 表格主體 -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="border-b border-emerald-900/60 text-emerald-500/80 text-xs bg-[#0c100d]">
+                            <th class="p-3 rounded-l-md">屬性</th>
+                            <th class="p-3">料號</th>
+                            <th class="p-3">項目名稱</th>
+                            <th class="p-3 text-right">單價</th>
+                            <th class="p-3 text-right">數量</th>
+                            <th class="p-3 text-right">打折</th>
+                            <th class="p-3 text-right">加總</th>
+                            <th class="p-3 text-center rounded-r-md">層架</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-rows">
+                        <!-- 資料由 JavaScript 動態生成 -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 工資、零件雙小計明細區 -->
+            <div class="border-t border-emerald-950 pt-4 mt-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-xs text-gray-400">
+                <div class="flex flex-wrap space-x-6">
+                    <div>
+                        <span>工資小計 (Labor)：</span>
+                        <span id="labor-subtotal" class="font-bold text-gray-200 font-mono">$ 0</span>
+                    </div>
+                    <div class="border-l border-emerald-900/60 pl-6">
+                        <span>零件原始總價：</span>
+                        <span id="parts-original-total" class="font-bold text-gray-200 font-mono">$ 0</span>
+                    </div>
+                    <div class="border-l border-emerald-900/60 pl-6">
+                        <span>零件折後實計：</span>
+                        <span id="parts-subtotal" class="font-bold text-amber-500 font-mono">$ 0</span>
+                    </div>
+                </div>
+
+                <!-- 零件折扣趴數輸入框 -->
+                <div class="flex items-center space-x-2 bg-[#0c100d] border border-emerald-900/80 rounded-lg px-3 py-1.5 shrink-0">
+                    <span class="text-[11px] text-emerald-500/80 font-bold">🛠️ 零件折扣比率：</span>
+                    <input 
+                        type="number" 
+                        id="part-discount-input" 
+                        value="100" 
+                        min="0" 
+                        max="100" 
+                        step="5"
+                        oninput="calculateTotalsWithDiscount()"
+                        class="w-12 bg-[#141a15] text-center text-white text-xs font-bold focus:outline-none border-b border-emerald-500 focus:border-emerald-400 font-mono"
+                    >
+                    <span class="text-[11px] text-gray-300 font-bold">%</span>
+                </div>
+            </div>
+
+            <!-- 底部總計金額 -->
+            <div class="border-t border-emerald-950 pt-3 mt-2 flex justify-between items-center">
+                <div class="flex flex-col">
+                    <span class="text-gray-400 text-sm font-medium">套餐應付總金額 (Grand Total)</span>
+                    <span id="discount-note" class="text-[10px] text-amber-500/80 font-medium mt-0.5 hidden">＊已套用零件折扣</span>
+                </div>
+                <span id="package-total" class="text-3xl font-black text-emerald-400 font-mono tracking-tight">$ 0</span>
+            </div>
+        </section>
+
+        <!-- 右側：零件圖片展示牆 -->
+        <section class="w-5/12 flex flex-col space-y-4 overflow-hidden">
+            <div class="flex-1 bg-[#141a15] rounded-xl border border-emerald-950 p-5 flex flex-col overflow-hidden shadow-2xl">
+                <h3 class="text-sm font-semibold text-emerald-500/80 mb-4 tracking-wider flex items-center">
+                    <span class="mr-2">🚙</span>套餐内含越野零件圖解 (點擊高亮，點圖放大)
+                </h3>
+                <div id="image-grid" class="flex-1 grid grid-cols-2 gap-4 overflow-y-auto custom-scrollbar p-1 align-content-start">
+                    <!-- 圖片卡片由 JavaScript 動態生成 -->
+                </div>
+            </div>
+
+            <!-- 備註說明區 -->
+            <div class="h-32 bg-[#141a15] rounded-xl border border-emerald-950 p-4 flex flex-col justify-center">
+                <h4 class="text-xs font-bold text-amber-500 mb-1">🏜️ 越野保養維護提示</h4>
+                <p class="text-xs text-gray-400 leading-relaxed">
+                    請技師依據 Jeep 原廠維修手冊程序執行更換。加註底盤/差速器油或機油後，請進行四輪傳動系統檢測與 OBD 保養週期歸零。
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 高質感點擊燈箱彈出視窗 -->
+    <div id="lightbox" onclick="closeLightbox()" class="hidden fixed inset-0 bg-black/90 z-50 flex flex-col justify-center items-center p-4 cursor-zoom-out transition-opacity duration-300 opacity-0">
+        <button class="absolute top-6 right-6 text-gray-400 hover:text-white text-4xl font-light focus:outline-none">&times;</button>
+        <div class="max-w-4xl max-h-[80vh] flex items-center justify-center bg-[#141a15] p-2 rounded-lg border border-emerald-900 shadow-2xl" onclick="event.stopPropagation()">
+            <img id="lightbox-img" src="" alt="零件大圖" class="max-w-full max-h-[75vh] object-contain rounded">
+        </div>
+        <div class="mt-4 text-center max-w-xl" onclick="event.stopPropagation()">
+            <p id="lightbox-part-id" class="text-xs text-emerald-500 font-mono tracking-widest"></p>
+            <h3 id="lightbox-title" class="text-lg font-bold text-white mt-1"></h3>
+            <div id="lightbox-desc-container" class="mt-3 px-4 py-2 bg-amber-950/40 border border-amber-900/50 rounded-lg text-amber-400 text-xs hidden leading-relaxed">
+                <span class="font-bold block text-amber-500 text-[10px] tracking-wider uppercase mb-0.5">⚠️ 現場維護說明 NOTE</span>
+                <span id="lightbox-desc-text"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================================
+        // 🎯【Jeep 雲端網址資料庫對照表】
+        // 請將下方 "WRANGLER RUBICON" 的網址替換成該分頁發布的 CSV 網址
+        // ==========================================================
+        const CAR_MODELS_SHEETS = {
+            "WRANGLER RUBICON": "https://docs.google.com/spreadsheets/d/e/YOUR_JEEP_SHEET_ID/pub?gid=0&single=true&output=csv",
+            // 未來如果有新增其他分頁，直接依照以下格式新增即可：
+            // "GLADIATOR 3.6V6": "https://docs.google.com/spreadsheets/d/e/YOUR_JEEP_SHEET_ID/pub?gid=12345678&single=true&output=csv",
+            // "GRAND CHEROKEE": "https://docs.google.com/spreadsheets/d/e/YOUR_JEEP_SHEET_ID/pub?gid=87654321&single=true&output=csv"
+        };
+
+        let allParsedPackages = {}; 
+        let currentPackageKey = "";
+        let selectedModel = Object.keys(CAR_MODELS_SHEETS)[0];
+        let rawLaborSum = 0;
+        let rawPartsSum = 0;
+
+        function initCarModelSelect() {
+            const selectEl = document.getElementById('car-model-select');
+            selectEl.innerHTML = Object.keys(CAR_MODELS_SHEETS).map(model => `
+                <option value="${model}" ${model === selectedModel ? 'selected' : ''}>${model}</option>
+            `).join('');
+        }
+
+        function switchCarModel(modelName) {
+            selectedModel = modelName;
+            document.getElementById('package-tabs').innerHTML = '<span class="text-sm text-gray-500">正在讀取雲端資料...</span>';
+            fetchSheetData();
+        }
+
+        async function fetchSheetData() {
+            const targetUrl = CAR_MODELS_SHEETS[selectedModel];
+            try {
+                // 加上時間戳防快取干擾，確保資料同步最即時
+                const response = await fetch(targetUrl + "&cachebust=" + new Date().getTime());
+                const csvText = await response.text();
+                parseExcelCSV(csvText);
+            } catch (error) {
+                console.error("抓取雲端資料失敗:", error);
+                document.getElementById('current-package-title').innerText = "❌ 雲端資料加載失敗，請檢查網路連線或 CSV 網址";
+            }
+        }
+
+        function parseExcelCSV(csvText) {
+            const lines = csvText.split(/\r?\n/);
+            const packages = {};
+            let currentPackageName = ""; 
+
+            lines.forEach((line) => {
+                const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim());
+                if (cols.length < 3) return;
+
+                const foundPackageCell = cols.find(cell => cell && cell.includes("套餐"));
+                
+                if (foundPackageCell) {
+                    currentPackageName = foundPackageCell;
+                    packages[currentPackageName] = {
+                        name: currentPackageName,
+                        items: []
+                    };
+                    return;
+                }
+
+                const attr = cols[0] || "";
+                const partId = cols[1] || "";
+                const name = cols[2] || "";
+
+                if (currentPackageName && partId && partId !== "料號" && attr !== "屬性") {
+                    const price = cols[3] || "";
+                    const qty = cols[4] || "";
+                    const discount = cols[5] || "";
+                    const subtotal = cols[6] || "";
+                    const location = cols[7] || ""; 
+                    const description = cols[9] || ""; // J 欄
+
+                    const cleanSubtotal = parseFloat(subtotal.replace(/[^0-9.-]+/g, "")) || 0;
+
+                    packages[currentPackageName].items.push({
+                        attr, partId, name, price, qty, discount, subtotal, cleanSubtotal, location, description
+                    });
+                }
+            });
+
+            allParsedPackages = packages;
+
+            const keys = Object.keys(allParsedPackages);
+            if (keys.length > 0) {
+                renderTabs(keys);
+                switchPackage(keys[0]);
+            } else {
+                document.getElementById('current-package-title').innerText = "⚠️ 找不到任何套餐項目，請確認此分頁資料格式是否正確";
+                clearDisplay();
+            }
+        }
+
+        function renderTabs(keys) {
+            const tabsContainer = document.getElementById('package-tabs');
+            tabsContainer.innerHTML = keys.map(key => `
+                <button onclick="switchPackage('${key}')" id="tab-${key}" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-[#141a15] text-gray-400 hover:bg-emerald-950 border border-emerald-900 whitespace-nowrap">
+                    ${key}
+                </button>
+            `).join('');
+        }
+
+        function switchPackage(key) {
+            if (!allParsedPackages[key]) return;
+
+            if (currentPackageKey) {
+                const prevTab = document.getElementById(`tab-${currentPackageKey}`);
+                if (prevTab) prevTab.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-[#141a15] text-gray-400 hover:bg-emerald-950 border border-emerald-900 whitespace-nowrap";
+            }
+            const activeTab = document.getElementById(`tab-${key}`);
+            if (activeTab) activeTab.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-emerald-700 text-white shadow-lg border border-emerald-500 whitespace-nowrap";
+
+            currentPackageKey = key;
+            const pkg = allParsedPackages[key];
+
+            document.getElementById('current-package-title').innerHTML = `<span class="w-2 h-5 bg-emerald-600 inline-block mr-2 rounded-sm"></span>${pkg.name}`;
+            
+            let tableHTML = '';
+            let gridHTML = '';
+            
+            rawLaborSum = 0;
+            rawPartsSum = 0;
+
+            pkg.items.forEach(item => {
+                if (item.attr === "工資") {
+                    rawLaborSum += item.cleanSubtotal;
+                } else {
+                    rawPartsSum += item.cleanSubtotal;
+                }
+
+                const isLabor = item.attr === "工資";
+                const attrBadgeClass = isLabor 
+                    ? "bg-slate-800 text-slate-300 border border-slate-700"
+                    : "bg-emerald-950/80 text-emerald-400 border border-emerald-800";
+
+                tableHTML += `
+                    <tr id="row-${item.partId}" class="border-b border-emerald-950 hover:bg-[#1e2920] transition-colors cursor-pointer text-xs" onclick="syncHighlight('${item.partId}')">
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${attrBadgeClass}">
+                                ${item.attr}
+                            </span>
+                        </td>
+                        <td class="p-3 font-mono text-gray-300">${item.partId}</td>
+                        <td class="p-3 text-white font-medium">${item.name}</td>
+                        <td class="p-3 text-right font-mono text-gray-300">${item.price}</td>
+                        <td class="p-3 text-right font-mono text-gray-300">${item.qty}</td>
+                        <td class="p-3 text-right font-mono text-gray-400">${item.discount}</td>
+                        <td class="p-3 text-right font-mono font-bold text-emerald-400">${item.subtotal}</td>
+                        <td class="p-3 text-center font-mono text-amber-500 font-semibold">${item.location || '-'}</td>
+                    </tr>
+                `;
+
+                if (item.attr !== "工資" && item.partId) {
+                    const imgUrl = `${item.partId}.jpg`;
+                    const defaultImg = "https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?auto=format&fit=crop&w=300&q=80";
+                    const safeDesc = encodeURIComponent(item.description || "");
+
+                    gridHTML += `
+                        <div id="card-${item.partId}" class="bg-[#1e2920] border border-emerald-900/60 rounded-lg p-3 flex flex-col items-center justify-between transition-all cursor-pointer hover:border-emerald-600 shadow-md" onclick="syncHighlight('${item.partId}')">
+                            <div class="w-full h-28 bg-[#0c100d] rounded mb-2 flex items-center justify-center overflow-hidden relative group" onclick="openLightbox('${imgUrl}', '${item.partId}', '${item.name}', '${defaultImg}', '${safeDesc}')">
+                                <img src="${imgUrl}" alt="${item.name}" onerror="this.src='${defaultImg}'" class="object-contain w-full h-full p-1 opacity-85 group-hover:opacity-100 transition-opacity">
+                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded">
+                                    <span class="text-xs text-white bg-emerald-700 px-2 py-1 rounded shadow">🔍 點擊看大圖</span>
+                                </div>
+                            </div>
+                            <div class="text-center w-full mt-1">
+                                <p class="text-[10px] text-emerald-500/70 font-mono">${item.partId}</p>
+                                <p class="text-xs text-white font-medium truncate">${item.name}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            document.getElementById('table-rows').innerHTML = tableHTML;
+            document.getElementById('image-grid').innerHTML = gridHTML;
+
+            calculateTotalsWithDiscount();
+        }
+
+        function calculateTotalsWithDiscount() {
+            const discountInput = document.getElementById('part-discount-input');
+            let discountRate = parseFloat(discountInput.value);
+
+            if (isNaN(discountRate) || discountRate < 0) discountRate = 100;
+
+            const discountedPartsSum = Math.round(rawPartsSum * (discountRate / 100));
+            const grandTotal = rawLaborSum + discountedPartsSum;
+
+            document.getElementById('labor-subtotal').innerText = `$ ${rawLaborSum.toLocaleString()}`;
+            document.getElementById('parts-original-total').innerText = `$ ${rawPartsSum.toLocaleString()}`;
+            document.getElementById('parts-subtotal').innerText = `$ ${discountedPartsSum.toLocaleString()}`;
+            document.getElementById('package-total').innerText = `$ ${grandTotal.toLocaleString()}`;
+
+            const discountNote = document.getElementById('discount-note');
+            if (discountRate < 100) {
+                discountNote.innerText = `＊已套用 ${discountRate}% 零件折扣`;
+                discountNote.classList.remove('hidden');
+            } else {
+                discountNote.classList.add('hidden');
+            }
+        }
+
+        function syncHighlight(partId) {
+            document.querySelectorAll('tr').forEach(el => el.classList.remove('active-row'));
+            document.querySelectorAll('#image-grid > div').forEach(el => el.classList.remove('active-card'));
+
+            const row = document.getElementById(`row-${partId}`);
+            const card = document.getElementById(`card-${partId}`);
+            if (row) row.classList.add('active-row');
+            if (card) card.classList.add('active-card');
+        }
+
+        function openLightbox(imgSrc, partId, title, defaultImg, encodedDesc) {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightbox-img');
+            const lightboxPartId = document.getElementById('lightbox-part-id');
+            const lightboxTitle = document.getElementById('lightbox-title');
+            
+            const description = decodeURIComponent(encodedDesc).trim();
+            const descContainer = document.getElementById('lightbox-desc-container');
+            const descText = document.getElementById('lightbox-desc-text');
+
+            lightboxImg.src = imgSrc;
+            lightboxImg.onerror = function() { this.src = defaultImg; };
+
+            lightboxPartId.innerText = partId;
+            lightboxTitle.innerText = title;
+
+            if (description) {
+                descText.innerText = description;
+                descContainer.classList.remove('hidden');
+            } else {
+                descContainer.classList.add('hidden');
+            }
+
+            lightbox.classList.remove('hidden');
+            setTimeout(() => { lightbox.classList.remove('opacity-0'); }, 10);
+        }
+
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.classList.add('opacity-0');
+            setTimeout(() => { lightbox.classList.add('hidden'); }, 300);
+        }
+
+        function clearDisplay() {
+            document.getElementById('table-rows').innerHTML = '';
+            document.getElementById('image-grid').innerHTML = '';
+            document.getElementById('package-total').innerText = '$ 0';
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') closeLightbox();
+        });
+
+        // 啟動排版
+        initCarModelSelect();
+        fetchSheetData();
+    </script>
+</body>
+</html>
