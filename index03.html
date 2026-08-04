@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jeep 行動保養與技術手冊</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0c100d; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, sans-serif; -webkit-tap-highlight-color: transparent; }
+        .active-card { border-color: #22c55e !important; background-color: #1a231c !important; }
+        .tab-active { color: #22c55e !important; }
+        .tab-active svg { fill: #22c55e !important; }
+        .cat-filter-active { background-color: #15803d !important; color: #ffffff !important; border-color: #22c55e !important; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden pb-16">
+
+    <!-- 頂部精簡 Header -->
+    <header class="bg-[#141a15] border-b border-emerald-950/80 px-4 py-3 flex items-center justify-between shrink-0 shadow-md">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-emerald-800 border border-emerald-600 rounded flex items-center justify-center font-black text-white text-[10px] tracking-widest">JEEP</div>
+            <select id="car-model-select" onchange="switchCarModel(this.value)" class="bg-[#0c100d] text-white border border-emerald-800 rounded px-2 py-1 text-xs font-bold focus:outline-none">
+            </select>
+        </div>
+        <button onclick="reloadCurrentData()" class="text-xs bg-[#0c100d] border border-emerald-800 text-emerald-400 px-2.5 py-1 rounded-lg active:scale-95 transition-transform">
+            🔄 同步
+        </button>
+    </header>
+
+    <!-- ========================================================== -->
+    <!-- 視圖一：保養套餐 (Mobile Package View) -->
+    <!-- ========================================================== -->
+    <main id="package-view" class="flex-1 overflow-y-auto p-4 space-y-4">
+        
+        <!-- 套餐橫向滑動頁籤 -->
+        <div id="package-tabs" class="flex space-x-2 overflow-x-auto pb-1 no-scrollbar shrink-0">
+            <span class="text-xs text-gray-500">載入套餐中...</span>
+        </div>
+
+        <!-- 應付總金額卡片 -->
+        <div class="bg-gradient-to-r from-[#141a15] to-[#1e2920] border border-emerald-900/80 rounded-xl p-4 shadow-lg flex justify-between items-center">
+            <div>
+                <p class="text-[11px] text-gray-400 font-bold">套餐應付總金額 (Grand Total)</p>
+                <div class="flex items-center space-x-2 mt-1">
+                    <span class="text-[10px] text-emerald-500/80 font-bold">🛠️ 折扣：</span>
+                    <input type="number" id="part-discount-input" value="100" min="0" max="100" step="5" oninput="calculateTotalsWithDiscount()" class="w-10 bg-[#0c100d] text-center text-white text-xs font-bold border-b border-emerald-500 font-mono">
+                    <span class="text-[10px] text-gray-400">%</span>
+                </div>
+            </div>
+            <span id="package-total" class="text-2xl font-black text-emerald-400 font-mono tracking-tight">$ 0</span>
+        </div>
+
+        <!-- 項目流動清單 (取代傳統表格，適合手機瀏覽) -->
+        <div id="mobile-items-list" class="space-y-3">
+            <!-- 由 JS 動態生成手機卡片 -->
+        </div>
+    </main>
+
+    <!-- ========================================================== -->
+    <!-- 視圖二：技術文獻庫 (Mobile Technical Docs View) -->
+    <!-- ========================================================== -->
+    <main id="docs-view" class="flex-1 overflow-y-auto p-4 space-y-3 hidden">
+        
+        <!-- 搜尋欄 -->
+        <div class="relative">
+            <input type="text" id="doc-search-input" oninput="filterDocs()" placeholder="搜尋手冊標題、分類或料號..." class="w-full bg-[#141a15] text-white text-xs rounded-xl pl-8 pr-8 py-2.5 border border-emerald-900 focus:outline-none focus:border-emerald-500">
+            <span class="absolute left-2.5 top-2.5 text-xs text-gray-500">🔍</span>
+            <button onclick="clearDocSearch()" id="doc-search-clear-btn" class="absolute right-2.5 top-2.5 text-xs text-gray-500 hidden">✕</button>
+        </div>
+
+        <!-- 動態分類過濾標籤 -->
+        <div id="doc-category-filters" class="flex space-x-1.5 overflow-x-auto pb-1 no-scrollbar">
+        </div>
+
+        <!-- 文件卡片清單 -->
+        <div id="docs-list-container" class="space-y-2.5">
+        </div>
+    </main>
+
+    <!-- ========================================================== -->
+    <!-- 手機專用全螢幕 PDF 彈出閱讀器 -->
+    <!-- ========================================================== -->
+    <div id="mobile-pdf-modal" class="fixed inset-0 bg-[#0c100d] z-50 flex flex-col hidden">
+        <div class="bg-[#141a15] border-b border-emerald-950 p-3 flex justify-between items-center shrink-0">
+            <h3 id="mobile-pdf-title" class="text-xs font-bold text-emerald-400 truncate pr-2">PDF 手冊閱讀</h3>
+            <div class="flex items-center space-x-2 shrink-0">
+                <a id="mobile-pdf-ext-btn" href="#" target="_blank" class="text-[10px] bg-emerald-800 text-white px-2 py-1 rounded">開啟外連 ↗</a>
+                <button onclick="closeMobilePdfModal()" class="text-gray-400 text-lg px-2">✕</button>
+            </div>
+        </div>
+        <div class="flex-1 relative">
+            <iframe id="mobile-pdf-frame" src="" class="w-full h-full border-none"></iframe>
+        </div>
+        <div id="mobile-linked-part-box" class="p-2 bg-[#141a15] border-t border-emerald-950 flex justify-between items-center hidden">
+            <span id="mobile-linked-part-id" class="text-[10px] text-amber-500 font-mono"></span>
+            <button onclick="previewMobileLinkedPart()" class="text-[10px] bg-emerald-900 text-emerald-300 px-2 py-1 rounded">查看對應零件 🔍</button>
+        </div>
+    </div>
+
+    <!-- 圖片大圖視窗 -->
+    <div id="lightbox" onclick="closeLightbox()" class="hidden fixed inset-0 bg-black/90 z-50 flex flex-col justify-center items-center p-4">
+        <img id="lightbox-img" src="" alt="零件大圖" class="max-w-full max-h-[70vh] object-contain rounded mb-3">
+        <p id="lightbox-part-id" class="text-xs text-emerald-500 font-mono"></p>
+        <h3 id="lightbox-title" class="text-sm font-bold text-white mt-1 text-center"></h3>
+    </div>
+
+    <!-- 底部 Tab 導覽列 (Bottom Navigation Bar) -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-[#141a15] border-t border-emerald-950 flex justify-around items-center h-14 z-40">
+        <button onclick="switchMobileTab('package')" id="tab-btn-package" class="flex flex-col items-center justify-center w-full h-full text-gray-400 tab-active">
+            <span class="text-base mb-0.5">🛠️</span>
+            <span class="text-[10px] font-bold">保養套餐</span>
+        </button>
+        <button onclick="switchMobileTab('docs')" id="tab-btn-docs" class="flex flex-col items-center justify-center w-full h-full text-gray-400">
+            <span class="text-base mb-0.5">📚</span>
+            <span class="text-[10px] font-bold">技術文獻</span>
+        </button>
+    </nav>
+
+    <script>
+        const CAR_MODELS_SHEETS = {
+            "WRANGLER RUBICON": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVwsJ0KAnc5QTB8zzJ4Fqi9dSxDb-ANsUtWuOdP-X90_PR68pW-OpeJJlyYJbBAnkTGtG3bLrfSZL7/pub?gid=548899643&single=true&output=csv"
+        };
+        const TECHNICAL_DOCS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVwsJ0KAnc5QTB8zzJ4Fqi9dSxDb-ANsUtWuOdP-X90_PR68pW-OpeJJlyYJbBAnkTGtG3bLrfSZL7/pub?gid=1007589567&single=true&output=csv";
+
+        let currentTab = 'package';
+        let selectedModel = Object.keys(CAR_MODELS_SHEETS)[0];
+        let allParsedPackages = {};
+        let currentPackageKey = "";
+        let rawLaborSum = 0, rawPartsSum = 0;
+        let allParsedDocs = [], selectedCategory = "ALL";
+        let activeLinkedPartId = "";
+
+        function switchMobileTab(tab) {
+            currentTab = tab;
+            const pkgView = document.getElementById('package-view');
+            const docsView = document.getElementById('docs-view');
+            const btnPkg = document.getElementById('tab-btn-package');
+            const btnDocs = document.getElementById('tab-btn-docs');
+
+            if (tab === 'package') {
+                pkgView.classList.remove('hidden');
+                docsView.classList.add('hidden');
+                btnPkg.classList.add('tab-active');
+                btnDocs.classList.remove('tab-active');
+            } else {
+                pkgView.classList.add('hidden');
+                docsView.classList.remove('hidden');
+                btnPkg.classList.remove('tab-active');
+                btnDocs.classList.add('tab-active');
+                fetchDocsData();
+            }
+        }
+
+        function reloadCurrentData() {
+            if (currentTab === 'package') fetchSheetData();
+            else fetchDocsData();
+        }
+
+        function initCarModelSelect() {
+            document.getElementById('car-model-select').innerHTML = Object.keys(CAR_MODELS_SHEETS).map(m => `<option value="${m}">${m}</option>`).join('');
+        }
+
+        function switchCarModel(model) {
+            selectedModel = model;
+            fetchSheetData();
+        }
+
+        async function fetchSheetData() {
+            try {
+                const res = await fetch(CAR_MODELS_SHEETS[selectedModel] + "&cb=" + Date.now());
+                const csv = await res.text();
+                parsePackageCSV(csv);
+            } catch (e) { console.error(e); }
+        }
+
+        function parsePackageCSV(csvText) {
+            const lines = csvText.split(/\r?\n/);
+            const packages = {};
+            let currentPkg = "";
+
+            lines.forEach(line => {
+                const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
+                if (cols.length < 3) return;
+
+                const pkgCell = cols.find(c => c && c.includes("套餐"));
+                if (pkgCell) { currentPkg = pkgCell; packages[currentPkg] = { name: currentPkg, items: [] }; return; }
+
+                const attr = cols[0] || "", partId = cols[1] || "", name = cols[2] || "";
+                if (currentPkg && partId && partId !== "料號" && attr !== "屬性") {
+                    const price = cols[3] || "", qty = cols[4] || "", subtotal = cols[6] || "", location = cols[7] || "";
+                    const cleanSubtotal = parseFloat(subtotal.replace(/[^0-9.-]+/g, "")) || 0;
+                    packages[currentPkg].items.push({ attr, partId, name, price, qty, subtotal, cleanSubtotal, location });
+                }
+            });
+
+            allParsedPackages = packages;
+            const keys = Object.keys(packages);
+            if (keys.length > 0) { renderPackageTabs(keys); switchPackage(keys[0]); }
+        }
+
+        function renderPackageTabs(keys) {
+            document.getElementById('package-tabs').innerHTML = keys.map(k => `
+                <button onclick="switchPackage('${k}')" id="tab-${k}" class="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-[#141a15] text-gray-400 border border-emerald-900">${k}</button>
+            `).join('');
+        }
+
+        function switchPackage(key) {
+            currentPackageKey = key;
+            document.querySelectorAll('#package-tabs button').forEach(b => b.className = "px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-[#141a15] text-gray-400 border border-emerald-900");
+            const activeTab = document.getElementById(`tab-${key}`);
+            if (activeTab) activeTab.className = "px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-emerald-700 text-white border border-emerald-500 shadow";
+
+            const pkg = allParsedPackages[key];
+            let listHtml = "";
+            rawLaborSum = 0; rawPartsSum = 0;
+
+            pkg.items.forEach(item => {
+                if (item.attr === "工資") rawLaborSum += item.cleanSubtotal;
+                else rawPartsSum += item.cleanSubtotal;
+
+                const isLabor = item.attr === "工資";
+                const imgUrl = `${item.partId}.jpg`;
+                const defaultImg = "https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?auto=format&fit=crop&w=300&q=80";
+
+                listHtml += `
+                    <div class="bg-[#141a15] border border-emerald-950/80 rounded-xl p-3 shadow flex space-x-3 items-center">
+                        ${!isLabor ? `
+                            <div class="w-16 h-16 bg-[#0c100d] border border-emerald-900/60 rounded-lg shrink-0 flex items-center justify-center p-1" onclick="openLightbox('${imgUrl}', '${item.partId}', '${item.name}')">
+                                <img src="${imgUrl}" onerror="this.src='${defaultImg}'" class="object-contain max-h-full">
+                            </div>
+                        ` : `
+                            <div class="w-16 h-16 bg-slate-900 border border-slate-800 rounded-lg shrink-0 flex items-center justify-center text-xs font-bold text-slate-400">
+                                工資
+                            </div>
+                        `}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[9px] px-1.5 py-0.5 rounded font-bold ${isLabor ? 'bg-slate-800 text-slate-300' : 'bg-emerald-950 text-emerald-400'}">${item.attr}</span>
+                                <span class="text-[10px] text-amber-500 font-mono">層架: ${item.location || '-'}</span>
+                            </div>
+                            <h4 class="text-xs font-bold text-white truncate mt-1">${item.name}</h4>
+                            <p class="text-[10px] text-gray-500 font-mono">${item.partId}</p>
+                            <div class="flex justify-between items-center mt-1">
+                                <span class="text-[10px] text-gray-400">$${item.price} × ${item.qty}</span>
+                                <span class="text-xs font-bold text-emerald-400 font-mono">${item.subtotal}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('mobile-items-list').innerHTML = listHtml;
+            calculateTotalsWithDiscount();
+        }
+
+        function calculateTotalsWithDiscount() {
+            let discount = parseFloat(document.getElementById('part-discount-input').value) || 100;
+            let discountedParts = Math.round(rawPartsSum * (discount / 100));
+            document.getElementById('package-total').innerText = `$ ${(rawLaborSum + discountedParts).toLocaleString()}`;
+        }
+
+        // --- 技術文獻庫 ---
+        async function fetchDocsData() {
+            try {
+                const res = await fetch(TECHNICAL_DOCS_URL + "&cb=" + Date.now());
+                const csv = await res.text();
+                parseDocsCSV(csv);
+            } catch (e) { console.error(e); }
+        }
+
+        function parseDocsCSV(csvText) {
+            const lines = csvText.split(/\r?\n/);
+            const docs = [], categories = new Set();
+
+            lines.forEach(line => {
+                const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
+                if (!cols || cols.length === 0 || cols.every(c => c === "")) return;
+                if (cols.some(c => c.includes("分類") || c.includes("標題"))) return;
+
+                const category = cols[0] || "通用", docId = cols[1] || "-", title = cols[2] || cols[0], pdfUrl = cols[3] || "#", linkedPart = cols[4] || "";
+                if (title && title !== "標題") {
+                    docs.push({ category, docId, title, pdfUrl, linkedPart });
+                    if (category) categories.add(category);
+                }
+            });
+
+            allParsedDocs = docs;
+            renderDocCategoryFilters(Array.from(categories));
+            filterDocs();
+        }
+
+        function renderDocCategoryFilters(cats) {
+            let html = `<button onclick="selectCategory('ALL')" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-900 ${selectedCategory === 'ALL' ? 'cat-filter-active' : 'bg-[#141a15] text-gray-400'}">全部</button>`;
+            cats.forEach(c => {
+                html += `<button onclick="selectCategory('${c}')" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-900 ${selectedCategory === c ? 'cat-filter-active' : 'bg-[#141a15] text-gray-400'}">${c}</button>`;
+            });
+            document.getElementById('doc-category-filters').innerHTML = html;
+        }
+
+        function selectCategory(cat) { selectedCategory = cat; filterDocs(); }
+
+        function filterDocs() {
+            const keyword = document.getElementById('doc-search-input').value.toLowerCase();
+            const filtered = allParsedDocs.filter(d => {
+                const matchCat = selectedCategory === 'ALL' || d.category === selectedCategory;
+                const matchKw = !keyword || d.title.toLowerCase().includes(keyword) || d.linkedPart.toLowerCase().includes(keyword);
+                return matchCat && matchKw;
+            });
+
+            let html = "";
+            filtered.forEach(d => {
+                html += `
+                    <div onclick="openMobilePdfModal('${d.pdfUrl}', '${d.title}', '${d.linkedPart}')" class="bg-[#141a15] border border-emerald-950 p-3 rounded-xl shadow active:scale-[0.98] transition-transform">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[9px] bg-emerald-950 text-emerald-400 px-2 py-0.5 rounded font-bold">${d.category}</span>
+                            <span class="text-[9px] text-gray-500 font-mono">${d.docId}</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-white mt-1.5">${d.title}</h4>
+                        ${d.linkedPart ? `<p class="text-[9px] text-amber-500/80 mt-1">🔗 對應料號: ${d.linkedPart}</p>` : ''}
+                    </div>
+                `;
+            });
+            document.getElementById('docs-list-container').innerHTML = html || '<p class="text-xs text-gray-500 text-center py-4">無對應文件</p>';
+        }
+
+        function clearDocSearch() { document.getElementById('doc-search-input').value = ''; filterDocs(); }
+
+        function openMobilePdfModal(url, title, linkedPart) {
+            document.getElementById('mobile-pdf-title').innerText = title;
+            document.getElementById('mobile-pdf-ext-btn').href = url;
+            document.getElementById('mobile-pdf-frame').src = url;
+
+            activeLinkedPartId = linkedPart;
+            const partBox = document.getElementById('mobile-linked-part-box');
+            if (linkedPart) {
+                document.getElementById('mobile-linked-part-id').innerText = `🔗 綁定零件: ${linkedPart}`;
+                partBox.classList.remove('hidden');
+            } else { partBox.classList.add('hidden'); }
+
+            document.getElementById('mobile-pdf-modal').classList.remove('hidden');
+        }
+
+        function closeMobilePdfModal() { document.getElementById('mobile-pdf-modal').classList.add('hidden'); }
+
+        function previewMobileLinkedPart() {
+            if (activeLinkedPartId) {
+                openLightbox(`${activeLinkedPartId}.jpg`, activeLinkedPartId, `關聯零件 (${activeLinkedPartId})`);
+            }
+        }
+
+        function openLightbox(img, partId, title) {
+            document.getElementById('lightbox-img').src = img;
+            document.getElementById('lightbox-part-id').innerText = partId;
+            document.getElementById('lightbox-title').innerText = title;
+            document.getElementById('lightbox').classList.remove('hidden');
+        }
+
+        function closeLightbox() { document.getElementById('lightbox').classList.add('hidden'); }
+
+        initCarModelSelect();
+        fetchSheetData();
+    </script>
+</body>
+</html>
