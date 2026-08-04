@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jeep 越野專業保養與技術文獻看板</title>
+    <!-- 使用 Tailwind CSS 打造硬派越野暗色風格 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0c100d; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -181,8 +182,8 @@
             "WRANGLER RUBICON": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVwsJ0KAnc5QTB8zzJ4Fqi9dSxDb-ANsUtWuOdP-X90_PR68pW-OpeJJlyYJbBAnkTGtG3bLrfSZL7/pub?gid=548899643&single=true&output=csv"
         };
 
-        // 🔗【新技術文獻庫 CSV 連結】（請將發布後的 CSV 網址填入下方 quotes 內）
-        const TECHNICAL_DOCS_URL = "https://docs.google.com/spreadsheets/d/e/YOUR_JEEP_SHEET_ID/pub?gid=YOUR_DOCS_GID&single=true&output=csv";
+        // 🔗【技術文獻庫 CSV 連結】已自動填入 gid=1007589567
+        const TECHNICAL_DOCS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVwsJ0KAnc5QTB8zzJ4Fqi9dSxDb-ANsUtWuOdP-X90_PR68pW-OpeJJlyYJbBAnkTGtG3bLrfSZL7/pub?gid=1007589567&single=true&output=csv";
 
         let currentMainView = 'package-view';
         let allParsedPackages = {}; 
