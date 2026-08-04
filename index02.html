@@ -14,6 +14,7 @@
         .active-row { background-color: #1a231c !important; border-left: 4px solid #48683e !important; }
         .active-card { border-color: #48683e !important; background-color: #1e2920 !important; transform: scale(1.02); }
         .nav-tab-active { background-color: #15803d !important; color: #ffffff !important; border-color: #22c55e !important; }
+        .cat-filter-active { background-color: #15803d !important; color: #ffffff !important; border-color: #22c55e !important; }
     </style>
 </head>
 <body class="h-screen overflow-hidden flex flex-col p-6 relative">
@@ -120,13 +121,33 @@
     <!-- 視圖二：技術文獻資料庫 (Technical Docs View) -->
     <!-- ========================================================== -->
     <main id="docs-view" class="flex-1 flex space-x-6 overflow-hidden hidden">
-        <!-- 左側：技術檔案清單 -->
+        <!-- 左側：技術檔案清單與搜尋欄 -->
         <section class="w-5/12 flex flex-col bg-[#141a15] rounded-xl border border-emerald-950 p-5 overflow-hidden shadow-2xl">
-            <div class="flex justify-between items-center mb-4 pb-3 border-b border-emerald-900/60">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b border-emerald-900/60">
                 <h2 class="text-lg font-bold text-emerald-400 flex items-center">
                     <span class="w-2 h-5 bg-emerald-600 inline-block mr-2 rounded-sm"></span>Jeep 原廠 TSB與技術手冊
                 </h2>
                 <span id="doc-count-badge" class="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-0.5 rounded-full font-bold">0 份文件</span>
+            </div>
+
+            <!-- 🔍 新增：搜尋輸入框區塊 -->
+            <div class="mb-3 space-y-2">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500 text-xs">🔍</span>
+                    <input 
+                        type="text" 
+                        id="doc-search-input" 
+                        oninput="filterDocs()" 
+                        placeholder="搜尋手冊標題、分類或料號..." 
+                        class="w-full bg-[#0c100d] text-white text-xs rounded-lg pl-8 pr-8 py-2 border border-emerald-900 focus:outline-none focus:border-emerald-500 placeholder-gray-600 transition-colors"
+                    >
+                    <button onclick="clearDocSearch()" id="doc-search-clear-btn" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-white text-xs hidden">✕</button>
+                </div>
+
+                <!-- 🏷️ 新增：動態分類過濾標籤標籤區域 -->
+                <div id="doc-category-filters" class="flex flex-wrap gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+                    <!-- JavaScript 動態帶入分類開關 -->
+                </div>
             </div>
 
             <!-- 文件對應列表 -->
@@ -182,7 +203,6 @@
             "WRANGLER RUBICON": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVwsJ0KAnc5QTB8zzJ4Fqi9dSxDb-ANsUtWuOdP-X90_PR68pW-OpeJJlyYJbBAnkTGtG3bLrfSZL7/pub?gid=548899643&single=true&output=csv"
         };
 
-        // 🔗【技術文獻庫 CSV 連結】已自動填入 gid=1007589567
         const TECHNICAL_DOCS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVwsJ0KAnc5QTB8zzJ4Fqi9dSxDb-ANsUtWuOdP-X90_PR68pW-OpeJJlyYJbBAnkTGtG3bLrfSZL7/pub?gid=1007589567&single=true&output=csv";
 
         let currentMainView = 'package-view';
@@ -191,6 +211,10 @@
         let selectedModel = Object.keys(CAR_MODELS_SHEETS)[0];
         let rawLaborSum = 0, rawPartsSum = 0;
         let activeLinkedPartId = "";
+
+        // 技術文件全域變數（供搜尋過濾使用）
+        let allParsedDocs = [];
+        let selectedCategory = "ALL";
 
         // 大頁籤切換
         function switchMainView(viewId) {
@@ -362,37 +386,117 @@
 
         function parseDocsCSV(csvText) {
             const lines = csvText.split(/\r?\n/);
-            let html = '';
-            let count = 0;
+            const docs = [];
+            const categories = new Set();
 
-            lines.forEach((line, index) => {
-                if (index === 0) return; // 跳過標題列
+            lines.forEach((line) => {
                 const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim());
-                if (cols.length < 3) return;
+                if (!cols || cols.length === 0 || cols.every(c => c === "")) return;
 
-                const category = cols[0] || "通用檔案";
-                const docId = cols[1] || "";
-                const title = cols[2] || "";
+                const isHeader = cols.some(cell => cell.includes("分類") || cell.includes("標題") || cell.includes("PDF") || cell.includes("網址"));
+                if (isHeader) return;
+
+                const category = cols[0] || "通用技術文件";
+                const docId = cols[1] || "-";
+                const title = cols[2] || cols[0];
                 const pdfUrl = cols[3] || "#";
                 const linkedPart = cols[4] || "";
 
-                if (title) {
-                    count++;
-                    html += `
-                        <div onclick="openPdfViewer('${pdfUrl}', '${title}', '${linkedPart}')" class="p-3 bg-[#1e2920] border border-emerald-900/60 hover:border-emerald-500 rounded-lg transition-all cursor-pointer shadow-md group">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-bold">${category}</span>
-                                <span class="text-[10px] text-gray-500 font-mono">${docId}</span>
-                            </div>
-                            <h4 class="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">${title}</h4>
-                            ${linkedPart ? `<p class="text-[10px] text-amber-500/80 mt-1">🔗 關聯料號：${linkedPart}</p>` : ''}
-                        </div>
-                    `;
+                if (title && title !== "標題") {
+                    docs.push({ category, docId, title, pdfUrl, linkedPart });
+                    if (category) categories.add(category);
                 }
             });
 
-            document.getElementById('doc-count-badge').innerText = `${count} 份文件`;
-            document.getElementById('docs-list-container').innerHTML = html || '<p class="text-xs text-gray-500 p-4">目前無技術文件</p>';
+            allParsedDocs = docs;
+            renderDocCategoryFilters(Array.from(categories));
+            filterDocs();
+        }
+
+        // 動態生成分類過濾按鈕
+        function renderDocCategoryFilters(categories) {
+            const filterContainer = document.getElementById('doc-category-filters');
+            if (categories.length <= 1) {
+                filterContainer.innerHTML = '';
+                return;
+            }
+
+            let html = `
+                <button onclick="selectDocCategory('ALL')" id="cat-btn-ALL" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-900 transition-all ${selectedCategory === 'ALL' ? 'cat-filter-active' : 'bg-[#0c100d] text-gray-400 hover:text-white'}">
+                    全部 (${allParsedDocs.length})
+                </button>
+            `;
+
+            categories.forEach(cat => {
+                const count = allParsedDocs.filter(d => d.category === cat).length;
+                html += `
+                    <button onclick="selectDocCategory('${cat}')" id="cat-btn-${cat}" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-900 transition-all ${selectedCategory === cat ? 'cat-filter-active' : 'bg-[#0c100d] text-gray-400 hover:text-white'}">
+                        ${cat} (${count})
+                    </button>
+                `;
+            });
+
+            filterContainer.innerHTML = html;
+        }
+
+        function selectDocCategory(cat) {
+            selectedCategory = cat;
+            // 更新按鈕樣式
+            document.querySelectorAll('#doc-category-filters > button').forEach(btn => {
+                btn.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-900 transition-all bg-[#0c100d] text-gray-400 hover:text-white";
+            });
+            const activeBtn = document.getElementById(`cat-btn-${cat}`);
+            if (activeBtn) activeBtn.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-900 transition-all cat-filter-active";
+
+            filterDocs();
+        }
+
+        // 🔍 多欄位即時搜尋與過濾
+        function filterDocs() {
+            const keyword = document.getElementById('doc-search-input').value.trim().toLowerCase();
+            const clearBtn = document.getElementById('doc-search-clear-btn');
+            
+            if (keyword) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+
+            const filtered = allParsedDocs.filter(doc => {
+                const matchCategory = selectedCategory === 'ALL' || doc.category === selectedCategory;
+                const matchKeyword = !keyword || 
+                    doc.title.toLowerCase().includes(keyword) || 
+                    doc.category.toLowerCase().includes(keyword) || 
+                    doc.docId.toLowerCase().includes(keyword) || 
+                    doc.linkedPart.toLowerCase().includes(keyword);
+
+                return matchCategory && matchKeyword;
+            });
+
+            renderDocsList(filtered);
+        }
+
+        function clearDocSearch() {
+            document.getElementById('doc-search-input').value = '';
+            filterDocs();
+        }
+
+        function renderDocsList(docs) {
+            const container = document.getElementById('docs-list-container');
+            let html = '';
+
+            docs.forEach(doc => {
+                html += `
+                    <div onclick="openPdfViewer('${doc.pdfUrl}', '${doc.title}', '${doc.linkedPart}')" class="p-3 bg-[#1e2920] border border-emerald-900/60 hover:border-emerald-500 rounded-lg transition-all cursor-pointer shadow-md group">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-bold">${doc.category}</span>
+                            <span class="text-[10px] text-gray-500 font-mono">${doc.docId}</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">${doc.title}</h4>
+                        ${doc.linkedPart ? `<p class="text-[10px] text-amber-500/80 mt-1">🔗 關聯料號：${doc.linkedPart}</p>` : ''}
+                    </div>
+                `;
+            });
+
+            document.getElementById('doc-count-badge').innerText = `${docs.length} 份文件`;
+            container.innerHTML = html || '<p class="text-xs text-gray-500 p-4 text-center">未找到符合條件的技術文獻</p>';
         }
 
         function openPdfViewer(url, title, linkedPart) {
